@@ -1,22 +1,17 @@
 "use client";
 
-import CodeWorkspace from "@/components/CodeWorkspace";
-import NeuralViewport from "@/components/NeuralViewport";
-import EdgeAnalytics from "@/components/EdgeAnalytics";
-import AgentAdvisory from "@/components/AgentAdvisory";
-import { Cpu, Wifi, Battery, Clock } from "lucide-react";
+import TopNavigation from "@/components/TopNavigation";
+import HardwareEditor from "@/components/HardwareEditor";
+import SimulationViewport from "@/components/SimulationViewport";
+import SiliconTelemetry from "@/components/SiliconTelemetry";
+import AgentConsole from "@/components/AgentConsole";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [time, setTime] = useState("00:00:00");
   const [uptime, setUptime] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      setTime(now.toTimeString().slice(0, 8));
-      setUptime((prev) => prev + 1);
-    }, 1000);
+    const interval = setInterval(() => setUptime((p) => p + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -28,102 +23,71 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#050505]">
-      {/* Top Bar */}
-      <header className="h-10 flex items-center justify-between px-4 border-b border-[#222] bg-[#0A0A0A]">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 border border-[#00D4FF] flex items-center justify-center">
-              <div className="w-2 h-2 bg-[#00D4FF]" />
-            </div>
-            <span className="text-sm font-mono font-bold text-white tracking-tight">OmniEdge</span>
-            <span className="text-[10px] font-mono text-[#555]">IDE</span>
-          </div>
-          <div className="h-4 w-px bg-[#222]" />
-          <nav className="flex items-center gap-4">
-            <button className="text-[10px] font-mono text-[#00D4FF] uppercase tracking-wider">Workspace</button>
-            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Deploy</button>
-            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Fleet</button>
-            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Docs</button>
-          </nav>
-        </div>
+    <main className="h-screen w-screen flex flex-col bg-[#050505] overflow-hidden">
+      {/* 1. TOP NAVIGATION */}
+      <TopNavigation />
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Wifi className="w-3.5 h-3.5 text-[#00FF88]" />
-            <span className="text-[9px] font-mono text-[#888]">CONNECTED</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Battery className="w-3.5 h-3.5 text-[#FFAA00]" />
-            <span className="text-[9px] font-mono text-[#888]">78%</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5 text-[#00D4FF]" />
-            <span className="text-[9px] font-mono text-[#888]">STM32H7</span>
-          </div>
-          <div className="h-4 w-px bg-[#222]" />
-          <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-[#555]" />
-            <span className="text-[9px] font-mono text-[#888]">{time}</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Secondary Bar */}
-      <div className="h-8 flex items-center justify-between px-4 border-b border-[#222] bg-[#050505]">
+      {/* Secondary workspace bar */}
+      <div className="h-6 flex items-center justify-between px-4 border-b border-[#1A1A1A] bg-[#050505]">
         <div className="flex items-center gap-3">
-          <span className="text-[9px] font-mono text-[#555]">PROJECT:</span>
+          <span className="text-[9px] font-mono text-[#555] uppercase tracking-wider">Workspace:</span>
           <span className="text-[9px] font-mono text-white">bionic-arm-vla-v2</span>
-          <div className="w-px h-3 bg-[#222]" />
-          <span className="text-[9px] font-mono text-[#555]">BRANCH:</span>
-          <span className="text-[9px] font-mono text-[#00FF88]">main</span>
+          <div className="w-px h-3 bg-[#1A1A1A]" />
+          <span className="text-[9px] font-mono text-[#555]">Branch:</span>
+          <span className="text-[9px] font-mono text-[#39FF14]">main</span>
+          <div className="w-px h-3 bg-[#1A1A1A]" />
+          <span className="text-[9px] font-mono text-[#555]">Last sync:</span>
+          <span className="text-[9px] font-mono text-[#888]">2s ago</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-[#00FF88] animate-pulse" />
-            <span className="text-[9px] font-mono text-[#00FF88]">SIMULATION ACTIVE</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono text-[#555]">UPTIME:</span>
-            <span className="text-[9px] font-mono text-[#888]">{formatUptime(uptime)}</span>
-          </div>
+          <span className="text-[9px] font-mono text-[#555]">
+            UPTIME <span className="text-[#888]">{formatUptime(uptime)}</span>
+          </span>
+          <span className="text-[9px] font-mono text-[#555]">
+            MEM <span className="text-[#FFAA00]">94.6%</span>
+          </span>
+          <span className="text-[9px] font-mono text-[#555]">
+            NPU <span className="text-[#FF3D00]">82°C</span>
+          </span>
         </div>
       </div>
 
-      {/* Main Content - 3 Column Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: Code Workspace */}
+      {/* MAIN CONTENT - 3 column layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* 2. HARDWARE-AS-CODE EDITOR */}
         <div className="w-80 shrink-0">
-          <CodeWorkspace />
+          <HardwareEditor />
         </div>
 
-        {/* Center: Neural-Physical Viewport */}
+        {/* 3. UNIFIED SIMULATION VIEWPORT */}
         <div className="flex-1 min-w-0">
-          <NeuralViewport />
+          <SimulationViewport />
         </div>
 
-        {/* Right: Edge Analytics Panel */}
+        {/* 4. SILICON TELEMETRY HUB */}
         <div className="w-80 shrink-0">
-          <EdgeAnalytics />
+          <SiliconTelemetry />
         </div>
       </div>
 
-      {/* Bottom: Agent Advisory */}
-      <AgentAdvisory />
+      {/* 5. AI AGENT CONSOLE (Bottom Dock) */}
+      <AgentConsole />
 
       {/* Status Footer */}
-      <footer className="h-6 flex items-center justify-between px-4 border-t border-[#222] bg-[#050505]">
-        <div className="flex items-center gap-4">
-          <span className="text-[8px] font-mono text-[#333]">OmniEdge IDE v0.9.4-beta</span>
-          <span className="text-[8px] font-mono text-[#333]">|</span>
-          <span className="text-[8px] font-mono text-[#333]">Hardware-as-Code Runtime</span>
+      <footer className="h-5 flex items-center justify-between px-4 border-t border-[#1A1A1A] bg-[#0A0A0A]">
+        <div className="flex items-center gap-3">
+          <span className="text-[8px] font-mono text-[#444]">OmniEdge Studio v0.1-beta</span>
+          <span className="text-[8px] font-mono text-[#333]">//</span>
+          <span className="text-[8px] font-mono text-[#444]">Hardware-as-Code Runtime</span>
+          <span className="text-[8px] font-mono text-[#333]">//</span>
+          <span className="text-[8px] font-mono text-[#00E5FF]">MCP · Renode_Emulator_v3</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-[8px] font-mono text-[#333]">ARM Cortex-M7 Emulation</span>
-          <span className="text-[8px] font-mono text-[#333]">|</span>
-          <span className="text-[8px] font-mono text-[#00FF88]">3 Neural Agents Online</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[8px] font-mono text-[#444]">ARM Cortex-M7 @ 480MHz</span>
+          <span className="text-[8px] font-mono text-[#333]">//</span>
+          <span className="text-[8px] font-mono text-[#39FF14]">5 Agents Online</span>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }
