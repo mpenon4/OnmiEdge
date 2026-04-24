@@ -2,12 +2,15 @@
 
 import { useMemo } from "react"
 import type { BusType, McuSpec, PinDef } from "@/lib/hardware-db"
+import type { ComponentDef, PinConflict } from "@/hooks/use-hardware"
 import { cn } from "@/lib/utils"
 
 interface McuViewportProps {
   mcu: McuSpec
   activePinIds: Set<string>
   activeBuses: Set<BusType>
+  components: ComponentDef[]
+  pinConflicts: PinConflict[]
 }
 
 const BUS_COLORS: Record<BusType, string> = {
@@ -98,13 +101,28 @@ function positionPin(pin: PinDef, mcu: McuSpec): PositionedPin {
   return { ...pin, ...positions[pin.side]() }
 }
 
-export function McuViewport({ mcu, activePinIds, activeBuses }: McuViewportProps) {
+export function McuViewport({
+  mcu,
+  activePinIds,
+  activeBuses,
+  components,
+  pinConflicts,
+}: McuViewportProps) {
   const positionedPins = useMemo(() => mcu.pins.map((p) => positionPin(p, mcu)), [mcu])
   const labelledPins = useMemo(() => positionedPins.filter((p) => p.bus), [positionedPins])
   const activeLabelledPins = useMemo(
     () => labelledPins.filter((p) => p.bus && activeBuses.has(p.bus)),
     [labelledPins, activeBuses],
   )
+
+  // Build a map of conflicted pins for fast lookup
+  const conflictedPins = useMemo(() => {
+    const map = new Set<string>()
+    for (const { pinId } of pinConflicts) {
+      map.add(pinId)
+    }
+    return map
+  }, [pinConflicts])
 
   return (
     <section
@@ -158,6 +176,15 @@ export function McuViewport({ mcu, activePinIds, activeBuses }: McuViewportProps
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <filter id="conflictGlow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feFlood floodColor="#FFAA00" floodOpacity="0.4" result="color" />
+              <feComposite in="color" in2="blur" operator="in" result="glow" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
             <pattern id="chipMicroGrid" width="6" height="6" patternUnits="userSpaceOnUse">
               <path d="M 6 0 L 0 0 0 6" fill="none" stroke="#1A1A1A" strokeWidth="0.5" opacity="0.5" />
             </pattern>
@@ -167,8 +194,15 @@ export function McuViewport({ mcu, activePinIds, activeBuses }: McuViewportProps
           {positionedPins.map((pin) => {
             const isActive = activePinIds.has(pin.id)
             const isBusPin = !!pin.bus
-            const stroke = isActive ? BUS_COLORS[pin.bus!] : "#222"
-            const fill = isActive ? BUS_COLORS[pin.bus!] : isBusPin ? "#2A2A2A" : "#1A1A1A"
+            const isConflicted = conflictedPins.has(pin.id)
+            const stroke = isConflicted ? "#FFAA00" : isActive ? BUS_COLORS[pin.bus!] : "#222"
+            const fill = isConflicted
+              ? "#332200"
+              : isActive
+                ? BUS_COLORS[pin.bus!]
+                : isBusPin
+                  ? "#2A2A2A"
+                  : "#1A1A1A"
             return (
               <g key={`${pin.side}-${pin.index}`}>
                 <rect
@@ -178,8 +212,8 @@ export function McuViewport({ mcu, activePinIds, activeBuses }: McuViewportProps
                   height={pin.rh}
                   fill={fill}
                   stroke={stroke}
-                  strokeWidth={isActive ? 1 : 0.5}
-                  filter={isActive ? "url(#pinGlow)" : undefined}
+                  strokeWidth={isConflicted ? 1.5 : isActive ? 1 : 0.5}
+                  filter={isConflicted ? "url(#conflictGlow)" : isActive ? "url(#pinGlow)" : undefined}
                 />
               </g>
             )

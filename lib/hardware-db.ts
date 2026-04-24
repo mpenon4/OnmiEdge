@@ -7,6 +7,8 @@ export type BusType = "i2c" | "spi" | "uart" | "can" | "usb" | "gpio"
 
 export type PinSide = "top" | "right" | "bottom" | "left"
 
+export type ComponentType = "lidar" | "bionic-hand" | "sensor" | "motor" | "display"
+
 export interface PinDef {
   /** Pin label (e.g. "PB6") */
   id: string
@@ -18,6 +20,22 @@ export interface PinDef {
   role: string
   /** Optional bus this pin belongs to. When the bus is enabled, pin glows. */
   bus?: BusType
+}
+
+export interface BusSpec {
+  type: BusType
+  maxBandwidthMbps: number
+  maxDevices: number
+  description: string
+}
+
+export interface ComponentSpec {
+  type: ComponentType
+  displayName: string
+  busType: BusType
+  defaultPins: number // How many pins this component typically needs
+  color: string
+  description: string
 }
 
 export interface McuSpec {
@@ -226,6 +244,88 @@ export const HARDWARE_DB: Record<McuId, McuSpec> = {
 }
 
 export const SUPPORTED_MCUS: McuId[] = ["STM32H7", "ESP32-S3", "RP2040", "NRF52840"]
+
+export const BUS_SPECS: Record<BusType, BusSpec> = {
+  i2c: {
+    type: "i2c",
+    maxBandwidthMbps: 3.4,
+    maxDevices: 128,
+    description: "Inter-Integrated Circuit",
+  },
+  spi: {
+    type: "spi",
+    maxBandwidthMbps: 100,
+    maxDevices: 4,
+    description: "Serial Peripheral Interface",
+  },
+  uart: {
+    type: "uart",
+    maxBandwidthMbps: 0.115,
+    maxDevices: 1,
+    description: "Universal Async Receiver-Transmitter",
+  },
+  can: {
+    type: "can",
+    maxBandwidthMbps: 1.0,
+    maxDevices: 32,
+    description: "Controller Area Network",
+  },
+  usb: {
+    type: "usb",
+    maxBandwidthMbps: 480,
+    maxDevices: 127,
+    description: "Universal Serial Bus",
+  },
+  gpio: {
+    type: "gpio",
+    maxBandwidthMbps: 0,
+    maxDevices: 255,
+    description: "General Purpose Input Output",
+  },
+}
+
+export const COMPONENT_SPECS: Record<ComponentType, ComponentSpec> = {
+  lidar: {
+    type: "lidar",
+    displayName: "LiDAR Sensor",
+    busType: "spi",
+    defaultPins: 4,
+    color: "#FF8C00",
+    description: "3D depth sensing via SPI protocol",
+  },
+  "bionic-hand": {
+    type: "bionic-hand",
+    displayName: "Bionic Hand Controller",
+    busType: "i2c",
+    defaultPins: 2,
+    color: "#00E5FF",
+    description: "I2C-based prosthetic control",
+  },
+  sensor: {
+    type: "sensor",
+    displayName: "Multi-Axis Sensor",
+    busType: "i2c",
+    defaultPins: 2,
+    color: "#39FF14",
+    description: "Accelerometer, gyro, thermometer via I2C",
+  },
+  motor: {
+    type: "motor",
+    displayName: "Motor Driver",
+    busType: "gpio",
+    defaultPins: 6,
+    color: "#FFAA00",
+    description: "PWM motor control via GPIO",
+  },
+  display: {
+    type: "display",
+    displayName: "OLED Display",
+    busType: "i2c",
+    defaultPins: 2,
+    color: "#E5E5E5",
+    description: "128x64 monochrome display via I2C",
+  },
+}
 
 export function getMcu(id: string | undefined | null): McuSpec {
   if (id && (id as McuId) in HARDWARE_DB) {

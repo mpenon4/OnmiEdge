@@ -1,7 +1,16 @@
 "use client"
 
 import { useMemo } from "react"
-import { type BusType, getMcu, type McuId, type McuSpec, type PinDef } from "@/lib/hardware-db"
+import {
+  type BusType,
+  type ComponentType,
+  COMPONENT_SPECS,
+  BUS_SPECS,
+  getMcu,
+  type McuId,
+  type McuSpec,
+  type PinDef,
+} from "@/lib/hardware-db"
 
 export interface PeripheralFlags {
   i2c_bus: boolean
@@ -11,14 +20,33 @@ export interface PeripheralFlags {
   usb: boolean
 }
 
+export interface ComponentDef {
+  name: string
+  type: ComponentType
+  bus: BusType
+  pins: string[] // e.g. ["PA5", "PA6"]
+}
+
 export interface HardwareConfig {
   mcuId: McuId
   clockMhz: number | null
   flashKb: number | null
   sramKb: number | null
   peripherals: PeripheralFlags
+  components: ComponentDef[]
   /** Lines that the parser flagged as warnings (e.g. unknown peripheral). */
   warnings: string[]
+}
+
+export interface PinConflict {
+  pinId: string
+  components: string[] // Component names sharing this pin
+}
+
+export interface BusUtilization {
+  bus: BusType
+  componentCount: number
+  estimatedUtilizationPercent: number
 }
 
 const PERIPHERAL_KEYS: (keyof PeripheralFlags)[] = ["i2c_bus", "spi_bus", "uart", "can_bus", "usb"]
@@ -63,6 +91,40 @@ function readBool(yaml: string, key: string): boolean {
   return v === "enabled" || v === "true" || v === "on" || v === "1"
 }
 
+/**
+ * Parse components section: "components: [{name: lidar_0, type: lidar, pins: [PA5, PA6]}, ...]"
+ */
+function parseComponents(yaml: string): ComponentDef[] {
+  const components: ComponentDef[] = []
+  // Simple regex: look for "- name: ... type: ... pins: ..."
+  const componentMatches = yaml.match(/- name:\s*(\w+)[\s\S]*?type:\s*(\w+)[\s\S]*?pins:\s*\[([\w\s,]+)\]/g)
+  if (!componentMatches) return components
+
+  for (const match of componentMatches) {
+    const nameM = match.match(/name:\s*(\w+)/)
+    const typeM = match.match(/type:\s*(\w+)/)
+    const pinsM = match.match(/pins:\s*\[([\w\s,]+)\]/)
+
+    if (nameM && typeM && pinsM) {
+      const name = nameM[1]
+      const type = typeM[1].toLowerCase() as ComponentType
+      const pinsStr = pinsM[1]
+      const pins = pinsStr.split(",").map((p) => p.trim())
+
+      if (COMPONENT_SPECS[type]) {
+        components.push({
+          name,
+          type,
+          bus: COMPONENT_SPECS[type].busType,
+          pins,
+        })
+      }
+    }
+  }
+
+  return components
+}
+
 export function parseHardwareYaml(yaml: string): HardwareConfig {
   const warnings: string[] = []
 
@@ -83,12 +145,15 @@ export function parseHardwareYaml(yaml: string): HardwareConfig {
     return acc
   }, {} as PeripheralFlags)
 
+  const components = parseComponents(yaml)
+
   return {
     mcuId,
     clockMhz: readNumber(yaml, "clock_mhz"),
     flashKb: readNumber(yaml, "flash_kb"),
     sramKb: readNumber(yaml, "sram_kb"),
     peripherals,
+    components,
     warnings,
   }
 }
@@ -110,6 +175,12 @@ export interface UseHardwareResult {
   effectiveSramKb: number
   /** Pins that map to the listed buses, grouped for the right panel. */
   pinsForBus: (bus: BusType) => PinDef[]
+  /** Pin conflicts (multiple components assigned to same pin). */
+  pinConflicts: PinConflict[]
+  /** Bus utilization estimates. */
+  busUtilization: BusUtilization[]
+  /** All component definitions. */
+  components: ComponentDef[]
 }
 
 export function useHardware(yaml: string): UseHardwareResult {
@@ -122,6 +193,11 @@ export function useHardware(yaml: string): UseHardwareResult {
       if (config.peripherals[key]) activeBuses.add(PERIPHERAL_TO_BUS[key])
     }
 
+    // Add buses from components
+    for (const comp of config.components) {
+      activeBuses.add(comp.bus)
+    }
+
     const activePinIds = new Set<string>()
     for (const pin of mcu.pins) {
       if (pin.bus && activeBuses.has(pin.bus)) {
@@ -129,7 +205,42 @@ export function useHardware(yaml: string): UseHardwareResult {
       }
     }
 
+    // Also add pins from component definitions
+    for (const comp of config.components) {
+      for (const pinId of comp.pins) {
+        activePinIds.add(pinId)
+      }
+    }
+
     const pinsForBus = (bus: BusType) => mcu.pins.filter((p) => p.bus === bus)
+
+    // Detect pin conflicts
+    const pinConflicts: PinConflict[] = []
+    const pinToComponents: Record<string, string[]> = {}
+    for (const comp of config.components) {
+      for (const pinId of comp.pins) {
+        if (!pinToComponents[pinId]) pinToComponents[pinId] = []
+        pinToComponents[pinId].push(comp.name)
+      }
+    }
+    for (const [pinId, components] of Object.entries(pinToComponents)) {
+      if (components.length > 1) {
+        pinConflicts.push({ pinId, components })
+      }
+    }
+
+    // Calculate bus utilization
+    const busUtilization: BusUtilization[] = []
+    for (const bus of ["i2c", "spi", "uart", "can", "usb"] as BusType[]) {
+      const componentCount = config.components.filter((c) => c.bus === bus).length
+      const spec = BUS_SPECS[bus]
+      const utilization = Math.min(100, (componentCount / spec.maxDevices) * 100)
+      busUtilization.push({
+        bus,
+        componentCount,
+        estimatedUtilizationPercent: utilization,
+      })
+    }
 
     return {
       config,
@@ -140,6 +251,9 @@ export function useHardware(yaml: string): UseHardwareResult {
       effectiveFlashKb: config.flashKb ?? mcu.flashKb,
       effectiveSramKb: config.sramKb ?? mcu.sramKb,
       pinsForBus,
+      pinConflicts,
+      busUtilization,
+      components: config.components,
     }
   }, [yaml])
 }

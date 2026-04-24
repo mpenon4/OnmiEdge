@@ -1,10 +1,9 @@
-"use client"
-
 import { useState } from "react"
 import { OmniSidebar, type SectionId } from "@/components/omni/sidebar"
 import { YamlEditor } from "@/components/omni/yaml-editor"
 import { McuViewport } from "@/components/omni/mcu-viewport"
 import { OracleStats } from "@/components/omni/oracle-stats"
+import { PeripheralTree } from "@/components/omni/peripheral-tree"
 import { useHardware } from "@/hooks/use-hardware"
 
 const DEFAULT_MANIFEST = `# OmniEdge Studio · Hardware Manifest
@@ -24,7 +23,12 @@ peripherals:
   can_bus: disabled
   usb: enabled        # routes OTG_FS (DM/DP)
 
-# Try changing mcu_id to: ESP32-S3 · RP2040 · NRF52840
+# Components section (optional)
+components:
+  - name: lidar_0
+    type: lidar
+    pins: [PA5, PA6]
+  # Try adding: - name: sensor_0, type: sensor, pins: [PB6]
 `
 
 export default function Page() {
@@ -37,7 +41,7 @@ export default function Page() {
     if (pristine) setPristine(false)
   }
 
-  const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb } =
+  const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb, pinConflicts, busUtilization, components } =
     useHardware(yaml)
 
   return (
@@ -74,28 +78,45 @@ export default function Page() {
           </div>
         </header>
 
-        {/* 3-pane workspace */}
-        <div className="flex flex-1 min-h-0">
-          {/* Left — YAML editor */}
-          <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
-            <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
+        {/* 3-pane workspace with bottom peripheral tree */}
+        <div className="flex flex-1 min-h-0 flex-col">
+          <div className="flex flex-1 min-h-0">
+            {/* Left — YAML editor */}
+            <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
+              <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
+            </div>
+
+            {/* Center — MCU viewport */}
+            <div className="flex-1 min-w-0">
+              <McuViewport
+                mcu={mcu}
+                activePinIds={activePinIds}
+                activeBuses={activeBuses}
+                components={components}
+                pinConflicts={pinConflicts}
+              />
+            </div>
+
+            {/* Right — Oracle stats */}
+            <div className="w-[300px] shrink-0">
+              <OracleStats
+                mcu={mcu}
+                config={config}
+                effectiveClockMhz={effectiveClockMhz}
+                effectiveFlashKb={effectiveFlashKb}
+                effectiveSramKb={effectiveSramKb}
+                activeBuses={activeBuses}
+                activeBusPinCount={activePinIds.size}
+              />
+            </div>
           </div>
 
-          {/* Center — MCU viewport */}
-          <div className="flex-1 min-w-0">
-            <McuViewport mcu={mcu} activePinIds={activePinIds} activeBuses={activeBuses} />
-          </div>
-
-          {/* Right — Oracle stats */}
-          <div className="w-[300px] shrink-0">
-            <OracleStats
-              mcu={mcu}
-              config={config}
-              effectiveClockMhz={effectiveClockMhz}
-              effectiveFlashKb={effectiveFlashKb}
-              effectiveSramKb={effectiveSramKb}
-              activeBuses={activeBuses}
-              activeBusPinCount={activePinIds.size}
+          {/* Bottom — Peripheral Tree with bandwidth utilization */}
+          <div className="h-32 shrink-0 border-t border-[#1A1A1A]">
+            <PeripheralTree
+              busUtilization={busUtilization}
+              pinConflicts={pinConflicts}
+              components={components}
             />
           </div>
         </div>
