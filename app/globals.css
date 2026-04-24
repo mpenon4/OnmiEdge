@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+:root {
+  --bg-primary: #0A0A0A;
+  --bg-panel: #141414;
+  --border-subtle: #2A2A2A;
+  --accent-cyan: #00E5FF;
+  --accent-amber: #FFB300;
+  --accent-red: #FF3D00;
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --text-tertiary: #666666;
+}
+
+@layer base {
+  * {
+    @apply border-[--border-subtle];
+  }
+  body {
+    @apply bg-[--bg-primary] text-[--text-primary];
+    font-family: var(--font-sans);
+  }
+  code, pre {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Terminal-like text animation */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: blink 1s infinite;
+}
+
+/* Panel border utility */
+.panel-border {
+  border: 1px solid rgb(42, 42, 42);
+}
