@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const geist = Geist({ subsets: ["latin"], variable: '--font-sans' });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: '--font-mono' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
-  title: 'OmniEdge IDE',
-  description: 'Unified Edge-Robotics Development Environment',
+  title: 'OmniEdge Studio // v0.1-beta',
+  description: 'The Unified IDE for Edge-AI Robotics',
   generator: 'v0.app',
 }
 
@@ -22,7 +22,7 @@ export default function RootLayout({
       <head>
         <style>{`
           :root {
-            --font-sans: ${geist.style.fontFamily};
+            --font-sans: ${inter.style.fontFamily};
             --font-mono: ${geistMono.style.fontFamily};
           }
         `}</style>
