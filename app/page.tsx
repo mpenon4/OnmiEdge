@@ -1,93 +1,123 @@
-"use client";
+"use client"
 
-import TopNavigation from "@/components/TopNavigation";
-import HardwareEditor from "@/components/HardwareEditor";
-import SimulationViewport from "@/components/SimulationViewport";
-import SiliconTelemetry from "@/components/SiliconTelemetry";
-import AgentConsole from "@/components/AgentConsole";
-import { useEffect, useState } from "react";
+import { useState } from "react"
+import { OmniSidebar, type SectionId } from "@/components/omni/sidebar"
+import { YamlEditor } from "@/components/omni/yaml-editor"
+import { McuViewport } from "@/components/omni/mcu-viewport"
+import { OracleStats } from "@/components/omni/oracle-stats"
+import { useHardware } from "@/hooks/use-hardware"
 
-export default function Home() {
-  const [uptime, setUptime] = useState(0);
+const DEFAULT_MANIFEST = `# OmniEdge Studio · Hardware Manifest
+# Edit values to reconfigure the silicon.
 
-  useEffect(() => {
-    const interval = setInterval(() => setUptime((p) => p + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
+mcu_id: STM32H7
+clock_mhz: 480
 
-  const formatUptime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
+memory:
+  flash_kb: 2048
+  sram_kb: 1024
+
+peripherals:
+  i2c_bus: enabled    # routes I2C1 (SCL/SDA)
+  spi_bus: enabled    # routes SPI1 (SCK/MISO/MOSI)
+  uart: disabled
+  can_bus: disabled
+  usb: enabled        # routes OTG_FS (DM/DP)
+
+# Try changing mcu_id to: ESP32-S3 · RP2040 · NRF52840
+`
+
+export default function Page() {
+  const [yaml, setYaml] = useState(DEFAULT_MANIFEST)
+  const [section, setSection] = useState<SectionId>("hardware")
+  const [pristine, setPristine] = useState(true)
+
+  const handleYamlChange = (next: string) => {
+    setYaml(next)
+    if (pristine) setPristine(false)
+  }
+
+  const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb } =
+    useHardware(yaml)
 
   return (
-    <main className="h-screen w-screen flex flex-col bg-[#050505] overflow-hidden">
-      {/* 1. TOP NAVIGATION */}
-      <TopNavigation />
+    <main className="flex h-screen w-screen overflow-hidden bg-[#050505]">
+      <OmniSidebar active={section} onSelect={setSection} />
 
-      {/* Secondary workspace bar */}
-      <div className="h-6 flex items-center justify-between px-4 border-b border-[#1A1A1A] bg-[#050505]">
-        <div className="flex items-center gap-3">
-          <span className="text-[9px] font-mono text-[#555] uppercase tracking-wider">Workspace:</span>
-          <span className="text-[9px] font-mono text-white">bionic-arm-vla-v2</span>
-          <div className="w-px h-3 bg-[#1A1A1A]" />
-          <span className="text-[9px] font-mono text-[#555]">Branch:</span>
-          <span className="text-[9px] font-mono text-[#39FF14]">main</span>
-          <div className="w-px h-3 bg-[#1A1A1A]" />
-          <span className="text-[9px] font-mono text-[#555]">Last sync:</span>
-          <span className="text-[9px] font-mono text-[#888]">2s ago</span>
+      <div className="flex flex-1 min-w-0 flex-col">
+        {/* Workspace header */}
+        <header className="flex h-9 shrink-0 items-center justify-between border-b border-[#1A1A1A] bg-[#0A0A0A] px-4">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white">
+              OmniEdge Studio
+            </span>
+            <span className="text-[#1A1A1A]">/</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#666]">
+              {section === "hardware" ? "Hardware-as-Code" : section}
+            </span>
+            <span className="text-[#1A1A1A]">/</span>
+            <span className="font-mono text-[10px] text-[#444]">stage 1</span>
+          </div>
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 text-[#666]">
+              <span className="h-1.5 w-1.5 bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.8)]" />
+              Manifest synced
+            </span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#666]">
+              MCU <span className="text-[#00E5FF]">{mcu.id}</span>
+            </span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#666]">
+              Buses <span className="text-white">{activeBuses.size}</span>/5
+            </span>
+          </div>
+        </header>
+
+        {/* 3-pane workspace */}
+        <div className="flex flex-1 min-h-0">
+          {/* Left — YAML editor */}
+          <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
+            <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
+          </div>
+
+          {/* Center — MCU viewport */}
+          <div className="flex-1 min-w-0">
+            <McuViewport mcu={mcu} activePinIds={activePinIds} activeBuses={activeBuses} />
+          </div>
+
+          {/* Right — Oracle stats */}
+          <div className="w-[300px] shrink-0">
+            <OracleStats
+              mcu={mcu}
+              config={config}
+              effectiveClockMhz={effectiveClockMhz}
+              effectiveFlashKb={effectiveFlashKb}
+              effectiveSramKb={effectiveSramKb}
+              activeBuses={activeBuses}
+              activeBusPinCount={activePinIds.size}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-[9px] font-mono text-[#555]">
-            UPTIME <span className="text-[#888]">{formatUptime(uptime)}</span>
-          </span>
-          <span className="text-[9px] font-mono text-[#555]">
-            MEM <span className="text-[#FFAA00]">94.6%</span>
-          </span>
-          <span className="text-[9px] font-mono text-[#555]">
-            NPU <span className="text-[#FF3D00]">82°C</span>
-          </span>
-        </div>
+
+        {/* Status bar */}
+        <footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+            <span>OmniEdge Studio v0.1-beta</span>
+            <span className="text-[#222]">·</span>
+            <span>Hardware-as-Code Runtime</span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#00E5FF]">HAL · {mcu.vendor.split(" ")[0]}</span>
+          </div>
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+            <span>{mcu.core}</span>
+            <span className="text-[#222]">·</span>
+            <span>{effectiveClockMhz} MHz</span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#39FF14]">Schema valid</span>
+          </div>
+        </footer>
       </div>
-
-      {/* MAIN CONTENT - 3 column layout */}
-      <div className="flex-1 flex min-h-0">
-        {/* 2. HARDWARE-AS-CODE EDITOR */}
-        <div className="w-80 shrink-0">
-          <HardwareEditor />
-        </div>
-
-        {/* 3. UNIFIED SIMULATION VIEWPORT */}
-        <div className="flex-1 min-w-0">
-          <SimulationViewport />
-        </div>
-
-        {/* 4. SILICON TELEMETRY HUB */}
-        <div className="w-80 shrink-0">
-          <SiliconTelemetry />
-        </div>
-      </div>
-
-      {/* 5. AI AGENT CONSOLE (Bottom Dock) */}
-      <AgentConsole />
-
-      {/* Status Footer */}
-      <footer className="h-5 flex items-center justify-between px-4 border-t border-[#1A1A1A] bg-[#0A0A0A]">
-        <div className="flex items-center gap-3">
-          <span className="text-[8px] font-mono text-[#444]">OmniEdge Studio v0.1-beta</span>
-          <span className="text-[8px] font-mono text-[#333]">//</span>
-          <span className="text-[8px] font-mono text-[#444]">Hardware-as-Code Runtime</span>
-          <span className="text-[8px] font-mono text-[#333]">//</span>
-          <span className="text-[8px] font-mono text-[#00E5FF]">MCP · Renode_Emulator_v3</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[8px] font-mono text-[#444]">ARM Cortex-M7 @ 480MHz</span>
-          <span className="text-[8px] font-mono text-[#333]">//</span>
-          <span className="text-[8px] font-mono text-[#39FF14]">5 Agents Online</span>
-        </div>
-      </footer>
     </main>
-  );
+  )
 }
