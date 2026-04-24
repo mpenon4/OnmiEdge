@@ -1,7 +1,17 @@
 "use client"
 
 import { useMemo } from "react"
-import { type BusType, getMcu, type McuId, type McuSpec, type PinDef } from "@/lib/hardware-db"
+import { 
+  type BusType, 
+  getMcu, 
+  getComponent,
+  type McuId, 
+  type McuSpec, 
+  type PinDef,
+  type ComponentId,
+  type ComponentSpec,
+  BUS_MAX_BANDWIDTH,
+} from "@/lib/hardware-db"
 
 export interface PeripheralFlags {
   i2c_bus: boolean

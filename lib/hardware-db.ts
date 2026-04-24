@@ -186,7 +186,7 @@ const RP2040: McuSpec = {
   ]),
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────��──────────────────────────────────────
 // NRF52840
 // ────────────────────────────────────────────────────────────────────────────────
 const NRF52840: McuSpec = {
@@ -232,4 +232,136 @@ export function getMcu(id: string | undefined | null): McuSpec {
     return HARDWARE_DB[id as McuId]
   }
   return HARDWARE_DB.STM32H7
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// COMPONENT DATABASE - External peripherals that connect to the MCU
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type ComponentId = 
+  | "lidar_rplidar_a1"
+  | "bionic_hand_v2"
+  | "imu_mpu6050"
+  | "motor_driver_drv8825"
+  | "camera_ov7670"
+  | "display_ssd1306"
+  | "gps_neo6m"
+  | "encoder_as5600"
+
+export interface ComponentSpec {
+  id: ComponentId
+  name: string
+  category: "sensor" | "actuator" | "display" | "communication"
+  /** Bus type required */
+  bus: BusType
+  /** Specific pin IDs this component needs (varies by MCU, we use generic labels) */
+  requiredPins: string[]
+  /** Bandwidth consumption on the bus (Kbps) */
+  bandwidthKbps: number
+  /** Icon hint for rendering */
+  icon: "radar" | "hand" | "cpu" | "zap" | "camera" | "monitor" | "navigation" | "disc"
+  /** Color for the connection line */
+  color: string
+}
+
+export const COMPONENT_DB: Record<ComponentId, ComponentSpec> = {
+  lidar_rplidar_a1: {
+    id: "lidar_rplidar_a1",
+    name: "RPLIDAR A1",
+    category: "sensor",
+    bus: "uart",
+    requiredPins: ["UART0_TX", "UART0_RX"],
+    bandwidthKbps: 115.2,
+    icon: "radar",
+    color: "#FF6B6B",
+  },
+  bionic_hand_v2: {
+    id: "bionic_hand_v2",
+    name: "Bionic Hand v2",
+    category: "actuator",
+    bus: "i2c",
+    requiredPins: ["I2C0_SCL", "I2C0_SDA", "I2C1_SCL", "I2C1_SDA"],
+    bandwidthKbps: 400,
+    icon: "hand",
+    color: "#4ECDC4",
+  },
+  imu_mpu6050: {
+    id: "imu_mpu6050",
+    name: "MPU-6050 IMU",
+    category: "sensor",
+    bus: "i2c",
+    requiredPins: ["I2C0_SCL", "I2C0_SDA"],
+    bandwidthKbps: 100,
+    icon: "cpu",
+    color: "#45B7D1",
+  },
+  motor_driver_drv8825: {
+    id: "motor_driver_drv8825",
+    name: "DRV8825 Driver",
+    category: "actuator",
+    bus: "spi",
+    requiredPins: ["SPI0_SCK", "SPI0_TX", "SPI0_RX", "SPI1_SCK"],
+    bandwidthKbps: 1000,
+    icon: "zap",
+    color: "#96CEB4",
+  },
+  camera_ov7670: {
+    id: "camera_ov7670",
+    name: "OV7670 Camera",
+    category: "sensor",
+    bus: "i2c",
+    requiredPins: ["I2C0_SCL", "I2C0_SDA"],
+    bandwidthKbps: 100,
+    icon: "camera",
+    color: "#DDA0DD",
+  },
+  display_ssd1306: {
+    id: "display_ssd1306",
+    name: "SSD1306 OLED",
+    category: "display",
+    bus: "i2c",
+    requiredPins: ["I2C0_SCL", "I2C0_SDA"],
+    bandwidthKbps: 400,
+    icon: "monitor",
+    color: "#F7DC6F",
+  },
+  gps_neo6m: {
+    id: "gps_neo6m",
+    name: "NEO-6M GPS",
+    category: "communication",
+    bus: "uart",
+    requiredPins: ["UART0_TX", "UART0_RX"],
+    bandwidthKbps: 9.6,
+    icon: "navigation",
+    color: "#82E0AA",
+  },
+  encoder_as5600: {
+    id: "encoder_as5600",
+    name: "AS5600 Encoder",
+    category: "sensor",
+    bus: "i2c",
+    requiredPins: ["I2C0_SCL", "I2C0_SDA"],
+    bandwidthKbps: 100,
+    icon: "disc",
+    color: "#BB8FCE",
+  },
+}
+
+export const SUPPORTED_COMPONENTS: ComponentId[] = Object.keys(COMPONENT_DB) as ComponentId[]
+
+export function getComponent(id: string | undefined | null): ComponentSpec | null {
+  if (id && (id as ComponentId) in COMPONENT_DB) {
+    return COMPONENT_DB[id as ComponentId]
+  }
+  return null
+}
+
+/** Max bandwidth per bus type (Kbps) */
+export const BUS_MAX_BANDWIDTH: Record<BusType, number> = {
+  i2c: 400,    // Fast mode
+  spi: 10000,  // 10 Mbps typical
+  uart: 921.6, // 921600 baud
+  can: 1000,   // 1 Mbps
+  usb: 12000,  // Full-speed USB
+  gpio: 0,     // N/A
 }
