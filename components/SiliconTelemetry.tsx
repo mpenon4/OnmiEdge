@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Cpu, Activity, Thermometer, Zap, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Cpu, Activity, Thermometer, Zap, TrendingUp, AlertTriangle } from "lucide-react";
+import { useSimulator } from "@/lib/simulator-context";
 
 export default function SiliconTelemetry() {
+  const sim = useSimulator();
+  const isCriticalAlert = sim.alertLevel === "critical";
+
   const [sram, setSram] = useState(95);
   const [latencySeries, setLatencySeries] = useState<number[]>(
     Array.from({ length: 40 }, () => 12 + Math.random() * 4),
@@ -12,50 +16,130 @@ export default function SiliconTelemetry() {
   const [npuTemp, setNpuTemp] = useState(82);
   const [joules, setJoules] = useState(0.847);
 
+  // When the agent declares CRITICAL, telemetry immediately jumps to the
+  // out-of-envelope values that match the diagnostic.
+  useEffect(() => {
+    if (isCriticalAlert) {
+      setSram(99.4);
+      setNpuTemp(93);
+    } else if (sim.alertLevel === "warning") {
+      setSram(95);
+      setNpuTemp(82);
+    } else if (sim.alertLevel === "nominal") {
+      setSram(62);
+      setNpuTemp(64);
+    }
+  }, [sim.alertLevel, isCriticalAlert]);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setSram((s) => Math.max(92, Math.min(97, s + (Math.random() - 0.5) * 0.8)));
+      setSram((s) => {
+        if (isCriticalAlert) return Math.max(98.5, Math.min(99.9, s + (Math.random() - 0.5) * 0.3));
+        if (sim.alertLevel === "warning") return Math.max(92, Math.min(97, s + (Math.random() - 0.5) * 0.8));
+        return Math.max(58, Math.min(72, s + (Math.random() - 0.5) * 1.2));
+      });
       setLatencySeries((prev) => {
-        const spike = Math.random() > 0.85;
-        const next = spike ? 30 + Math.random() * 20 : 10 + Math.random() * 8;
+        const spike = Math.random() > (isCriticalAlert ? 0.4 : 0.85);
+        const baseline = isCriticalAlert ? 28 : 12;
+        const spikeHeight = isCriticalAlert ? 80 : 30;
+        const next = spike ? spikeHeight + Math.random() * 30 : baseline + Math.random() * 8;
         return [...prev.slice(1), next];
       });
-      setNpuTemp((t) => Math.max(78, Math.min(87, t + (Math.random() - 0.5) * 1.2)));
-      setJoules((j) => Math.max(0.6, Math.min(1.2, j + (Math.random() - 0.5) * 0.03)));
+      setNpuTemp((t) => {
+        if (isCriticalAlert) return Math.max(90, Math.min(97, t + (Math.random() - 0.5) * 0.8));
+        if (sim.alertLevel === "warning") return Math.max(78, Math.min(87, t + (Math.random() - 0.5) * 1.2));
+        return Math.max(58, Math.min(72, t + (Math.random() - 0.5) * 1.2));
+      });
+      setJoules((j) => {
+        const target = isCriticalAlert ? 1.6 : sim.alertLevel === "warning" ? 0.85 : 0.42;
+        return Math.max(target - 0.1, Math.min(target + 0.1, j + (Math.random() - 0.5) * 0.03));
+      });
     }, 800);
     return () => clearInterval(interval);
-  }, []);
+  }, [isCriticalAlert, sim.alertLevel]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0A0A0A] border-l border-[#1A1A1A] overflow-hidden">
+    <motion.div
+      className="h-full flex flex-col bg-[#0A0A0A] border-l overflow-hidden relative"
+      animate={{
+        borderLeftColor: isCriticalAlert ? "#FF3D00" : "#1A1A1A",
+      }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Critical alert overlay pulse */}
+      <AnimatePresence>
+        {isCriticalAlert && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.15, 0.05, 0.15] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+            className="absolute inset-0 bg-[#FF3D00] pointer-events-none z-0"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <div className="h-8 flex items-center justify-between px-3 border-b border-[#1A1A1A] bg-[#050505]">
+      <div
+        className="h-8 flex items-center justify-between px-3 border-b bg-[#050505] relative z-10"
+        style={{ borderColor: isCriticalAlert ? "#FF3D00" : "#1A1A1A" }}
+      >
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-[#00E5FF] glow-cyan" />
-          <span className="text-[10px] font-mono text-white uppercase tracking-wider">
-            Silicon Telemetry
-          </span>
+          {isCriticalAlert ? (
+            <motion.div
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              className="flex items-center gap-1.5"
+            >
+              <AlertTriangle className="w-3 h-3 text-[#FF3D00]" />
+              <span className="text-[10px] font-mono text-[#FF3D00] uppercase tracking-wider font-semibold">
+                CRITICAL · Out of Envelope
+              </span>
+            </motion.div>
+          ) : (
+            <>
+              <div className="w-1.5 h-1.5 bg-[#00E5FF]" />
+              <span className="text-[10px] font-mono text-white uppercase tracking-wider">
+                Silicon Telemetry
+              </span>
+            </>
+          )}
         </div>
         <span className="text-[9px] font-mono text-[#555]">HUB</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Widget 1: Memory */}
-        <MemoryWidget sram={sram} />
+      {/* Alert banner */}
+      <AnimatePresence>
+        {isCriticalAlert && sim.diagnosticMessage && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="relative z-10 bg-[#1a0505] border-b border-[#FF3D00]/60 overflow-hidden"
+          >
+            <div className="px-3 py-2 flex items-start gap-2">
+              <AlertTriangle className="w-3 h-3 text-[#FF3D00] shrink-0 mt-0.5 animate-pulse" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] font-mono text-[#FF3D00] uppercase tracking-wider mb-0.5">
+                  Agent Diagnostic · {sim.alertSource}
+                </div>
+                <div className="text-[10px] font-mono text-[#ff9980] leading-relaxed">
+                  {sim.diagnosticMessage}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Widget 2: Inference Latency */}
-        <InferenceWidget latencySeries={latencySeries} />
-
-        {/* Widget 3: Thermal */}
-        <ThermalWidget temp={npuTemp} />
-
-        {/* Widget 4: Energy */}
-        <EnergyWidget joules={joules} />
-
-        {/* Bus Activity */}
-        <BusActivityWidget />
+      <div className="flex-1 overflow-y-auto relative z-10">
+        <MemoryWidget sram={sram} forceCritical={isCriticalAlert} />
+        <InferenceWidget latencySeries={latencySeries} forceCritical={isCriticalAlert} />
+        <ThermalWidget temp={npuTemp} forceCritical={isCriticalAlert} />
+        <EnergyWidget joules={joules} forceCritical={isCriticalAlert} />
+        <BusActivityWidget forceCritical={isCriticalAlert} />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -89,8 +173,8 @@ function WidgetHeader({
   );
 }
 
-function MemoryWidget({ sram }: { sram: number }) {
-  const isCritical = sram > 95;
+function MemoryWidget({ sram, forceCritical }: { sram: number; forceCritical?: boolean }) {
+  const isCritical = forceCritical || sram > 95;
   const color = isCritical ? "#FF3D00" : sram > 90 ? "#FFAA00" : "#39FF14";
   const circumference = 2 * Math.PI * 38;
   const offset = circumference - (sram / 100) * circumference;
@@ -142,13 +226,21 @@ function MemoryWidget({ sram }: { sram: number }) {
   );
 }
 
-function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
+function InferenceWidget({
+  latencySeries,
+  forceCritical,
+}: {
+  latencySeries: number[];
+  forceCritical?: boolean;
+}) {
   const max = Math.max(...latencySeries, 50);
   const min = Math.min(...latencySeries, 0);
   const current = latencySeries[latencySeries.length - 1];
   const avg = latencySeries.reduce((a, b) => a + b, 0) / latencySeries.length;
   const width = 280;
   const height = 60;
+  const lineColor = forceCritical ? "#FF3D00" : "#00E5FF";
+  const headlineColor = forceCritical ? "#FF3D00" : "#00E5FF";
 
   const points = latencySeries
     .map((v, i) => {
@@ -165,13 +257,13 @@ function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
       <WidgetHeader
         icon={<Activity className="w-3 h-3" />}
         title="AI Inference Latency"
-        status="LIVE"
-        statusColor="#00E5FF"
+        status={forceCritical ? "SPIKING" : "LIVE"}
+        statusColor={headlineColor}
       />
       <div className="p-3">
         <div className="flex items-baseline justify-between mb-2">
           <div>
-            <span className="text-[22px] font-mono font-bold text-[#00E5FF]">
+            <span className="text-[22px] font-mono font-bold" style={{ color: headlineColor }}>
               {current.toFixed(1)}
             </span>
             <span className="text-[10px] font-mono text-[#555] ml-1">ms</span>
@@ -181,18 +273,21 @@ function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
               AVG <span className="text-[#888]">{avg.toFixed(1)}ms</span>
             </div>
             <div className="text-[9px] font-mono text-[#555]">
-              MAX <span className="text-[#FFAA00]">{Math.max(...latencySeries).toFixed(1)}ms</span>
+              MAX <span style={{ color: forceCritical ? "#FF3D00" : "#FFAA00" }}>{Math.max(...latencySeries).toFixed(1)}ms</span>
             </div>
           </div>
         </div>
 
         {/* Sparkline */}
-        <div className="relative bg-[#050505] border border-[#1A1A1A] p-1">
+        <div
+          className="relative bg-[#050505] border p-1"
+          style={{ borderColor: forceCritical ? "#FF3D00" : "#1A1A1A" }}
+        >
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-14">
             <defs>
               <linearGradient id="latGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#00E5FF" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#00E5FF" stopOpacity="0" />
+                <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
               </linearGradient>
             </defs>
             {/* Reference lines */}
@@ -202,9 +297,9 @@ function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
             <polyline
               points={points}
               fill="none"
-              stroke="#00E5FF"
+              stroke={lineColor}
               strokeWidth="1.5"
-              style={{ filter: "drop-shadow(0 0 2px #00E5FF)" }}
+              style={{ filter: `drop-shadow(0 0 2px ${lineColor})` }}
             />
             {/* Current point */}
             {(() => {
@@ -212,8 +307,8 @@ function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
               const lastY = height - ((current - min) / (max - min)) * height;
               return (
                 <>
-                  <circle cx={lastX} cy={lastY} r="2" fill="#00E5FF" />
-                  <circle cx={lastX} cy={lastY} r="4" fill="none" stroke="#00E5FF" opacity="0.4" />
+                  <circle cx={lastX} cy={lastY} r="2" fill={lineColor} />
+                  <circle cx={lastX} cy={lastY} r="4" fill="none" stroke={lineColor} opacity="0.4" />
                 </>
               );
             })()}
@@ -229,9 +324,9 @@ function InferenceWidget({ latencySeries }: { latencySeries: number[] }) {
   );
 }
 
-function ThermalWidget({ temp }: { temp: number }) {
+function ThermalWidget({ temp, forceCritical }: { temp: number; forceCritical?: boolean }) {
   const percent = ((temp - 40) / 50) * 100;
-  const isCritical = temp > 85;
+  const isCritical = forceCritical || temp > 85;
   const color = isCritical ? "#FF3D00" : temp > 75 ? "#FFAA00" : "#39FF14";
 
   return (
@@ -306,26 +401,36 @@ function ThermalZone({ label, value, primary }: { label: string; value: number; 
   );
 }
 
-function EnergyWidget({ joules }: { joules: number }) {
+function EnergyWidget({ joules, forceCritical }: { joules: number; forceCritical?: boolean }) {
+  const energyColor = forceCritical ? "#FF3D00" : joules > 1 ? "#FFAA00" : "#39FF14";
+  const label = forceCritical ? "OVER BUDGET" : joules > 1 ? "ELEVATED" : "EFFICIENT";
   return (
     <div className="border-b border-[#1A1A1A]">
       <WidgetHeader
         icon={<Zap className="w-3 h-3" />}
         title="Joules per Action"
-        status="EFFICIENT"
-        statusColor="#39FF14"
+        status={label}
+        statusColor={energyColor}
       />
       <div className="p-3">
         <div className="flex items-baseline justify-between">
           <div>
-            <span className="text-[22px] font-mono font-bold text-[#39FF14]">
+            <span className="text-[22px] font-mono font-bold" style={{ color: energyColor }}>
               {joules.toFixed(3)}
             </span>
             <span className="text-[10px] font-mono text-[#555] ml-1">J/act</span>
           </div>
           <div className="flex items-center gap-1">
-            <TrendingUp className="w-2.5 h-2.5 text-[#39FF14]" />
-            <span className="text-[9px] font-mono text-[#39FF14]">-12.4%</span>
+            <TrendingUp
+              className="w-2.5 h-2.5"
+              style={{
+                color: energyColor,
+                transform: forceCritical ? "rotate(0deg)" : "rotate(180deg)",
+              }}
+            />
+            <span className="text-[9px] font-mono" style={{ color: energyColor }}>
+              {forceCritical ? "+84.2%" : "-12.4%"}
+            </span>
           </div>
         </div>
 
@@ -339,13 +444,20 @@ function EnergyWidget({ joules }: { joules: number }) {
   );
 }
 
-function BusActivityWidget() {
-  const buses = [
-    { name: "I2C-1", usage: 92, state: "contention", color: "#FF3D00" },
-    { name: "SPI-2", usage: 64, state: "ok", color: "#00E5FF" },
-    { name: "CAN-0", usage: 34, state: "ok", color: "#39FF14" },
-    { name: "UART-3", usage: 18, state: "ok", color: "#39FF14" },
-  ];
+function BusActivityWidget({ forceCritical }: { forceCritical?: boolean }) {
+  const buses = forceCritical
+    ? [
+        { name: "I2C-1", usage: 99, state: "contention", color: "#FF3D00" },
+        { name: "SPI-2", usage: 88, state: "contention", color: "#FF3D00" },
+        { name: "CAN-0", usage: 52, state: "ok", color: "#FFAA00" },
+        { name: "UART-3", usage: 41, state: "ok", color: "#FFAA00" },
+      ]
+    : [
+        { name: "I2C-1", usage: 92, state: "contention", color: "#FF3D00" },
+        { name: "SPI-2", usage: 64, state: "ok", color: "#00E5FF" },
+        { name: "CAN-0", usage: 34, state: "ok", color: "#39FF14" },
+        { name: "UART-3", usage: 18, state: "ok", color: "#39FF14" },
+      ];
 
   return (
     <div className="border-b border-[#1A1A1A]">
