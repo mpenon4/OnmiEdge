@@ -7,8 +7,8 @@ const geist = Geist({ subsets: ["latin"], variable: '--font-sans' });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'EdgeTwin OS',
-  description: 'AI-to-Hardware Simulation Portal',
+  title: 'OmniEdge IDE',
+  description: 'Unified Edge-Robotics Development Environment',
   generator: 'v0.app',
 }
 
@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-[#0A0A0A]">
+    <html lang="en" className="bg-[#050505]">
       <head>
         <style>{`
           :root {
@@ -27,7 +27,7 @@ export default function RootLayout({
           }
         `}</style>
       </head>
-      <body className="font-sans antialiased bg-[#0A0A0A] text-white">
+      <body className="font-sans antialiased bg-[#050505] text-white overflow-hidden">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

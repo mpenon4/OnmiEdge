@@ -1,135 +1,129 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { TopNavigation } from '@/components/TopNavigation';
-import { LeftSidebar } from '@/components/LeftSidebar';
-import { TelemetryWidget } from '@/components/TelemetryWidget';
-import { LatencyChart } from '@/components/LatencyChart';
-import { Terminal } from '@/components/Terminal';
+import CodeWorkspace from "@/components/CodeWorkspace";
+import NeuralViewport from "@/components/NeuralViewport";
+import EdgeAnalytics from "@/components/EdgeAnalytics";
+import AgentAdvisory from "@/components/AgentAdvisory";
+import { Cpu, Wifi, Battery, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [isRunning, setIsRunning] = useState(false);
-  const [memoryUsage, setMemoryUsage] = useState(45);
-  const [cpuLoad, setCpuLoad] = useState(20);
-  const [thermalEstimate, setThermalEstimate] = useState(28);
-  const [latency, setLatency] = useState(250);
+  const [time, setTime] = useState("00:00:00");
+  const [uptime, setUptime] = useState(0);
 
   useEffect(() => {
-    if (!isRunning) {
-      setMemoryUsage(45);
-      setCpuLoad(20);
-      setThermalEstimate(28);
-      setLatency(250);
-      return;
-    }
-
     const interval = setInterval(() => {
-      setMemoryUsage((prev) => {
-        const change = (Math.random() - 0.3) * 5;
-        return Math.min(100, Math.max(50, prev + change));
-      });
-
-      setCpuLoad((prev) => {
-        const change = (Math.random() - 0.2) * 8;
-        return Math.min(100, Math.max(60, prev + change));
-      });
-
-      setThermalEstimate((prev) => {
-        const change = (Math.random() - 0.3) * 3;
-        return Math.min(95, Math.max(75, prev + change));
-      });
-
-      setLatency((prev) => {
-        const change = (Math.random() - 0.4) * 400;
-        return Math.max(1000, prev + change);
-      });
-    }, 500);
-
+      const now = new Date();
+      setTime(now.toTimeString().slice(0, 8));
+      setUptime((prev) => prev + 1);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [isRunning]);
+  }, []);
 
-  const handleRunSimulation = () => {
-    setIsRunning(true);
-  };
-
-  const getMemoryStatus = () => {
-    if (memoryUsage > 95) return 'critical';
-    if (memoryUsage > 85) return 'warning';
-    return 'normal';
-  };
-
-  const getCpuStatus = () => {
-    if (cpuLoad > 95) return 'critical';
-    if (cpuLoad > 80) return 'warning';
-    return 'normal';
-  };
-
-  const getThermalStatus = () => {
-    if (thermalEstimate > 85) return 'critical';
-    if (thermalEstimate > 75) return 'warning';
-    return 'normal';
-  };
-
-  const getLatencyStatus = () => {
-    if (latency > 4000) return 'critical';
-    if (latency > 2000) return 'warning';
-    return 'normal';
+  const formatUptime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
   return (
-    <div className="h-screen bg-[--bg-primary] flex flex-col overflow-hidden">
-      <TopNavigation />
-
-      <div className="flex flex-1 overflow-hidden">
-        <LeftSidebar onRunSimulation={handleRunSimulation} isRunning={isRunning} />
-
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Main Canvas */}
-          <div className="flex-1 overflow-auto p-6">
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {/* Memory Allocation Widget */}
-              <TelemetryWidget
-                title="Memory Allocation (SRAM)"
-                value={memoryUsage.toFixed(1)}
-                unit="MB / 2.00 MB"
-                percentage={memoryUsage}
-                status={getMemoryStatus()}
-                subtitle={`${(memoryUsage * 2 / 100).toFixed(2)} MB allocated`}
-              />
-
-              {/* CPU Load Widget */}
-              <TelemetryWidget
-                title="CPU Load"
-                value={cpuLoad.toFixed(0)}
-                unit="%"
-                percentage={cpuLoad}
-                status={getCpuStatus()}
-                subtitle="Cortex-M7 utilization"
-              />
-
-              {/* Thermal Estimate Widget */}
-              <TelemetryWidget
-                title="Thermal Estimate"
-                value={thermalEstimate.toFixed(0)}
-                unit="°C"
-                percentage={(thermalEstimate / 100) * 100}
-                status={getThermalStatus()}
-                subtitle={thermalEstimate > 80 ? 'THROTTLING ACTIVE' : 'Normal operation'}
-              />
+    <div className="h-screen flex flex-col bg-[#050505]">
+      {/* Top Bar */}
+      <header className="h-10 flex items-center justify-between px-4 border-b border-[#222] bg-[#0A0A0A]">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 border border-[#00D4FF] flex items-center justify-center">
+              <div className="w-2 h-2 bg-[#00D4FF]" />
             </div>
-
-            {/* Latency Chart */}
-            <div className="h-64">
-              <LatencyChart currentLatency={latency} isRunning={isRunning} />
-            </div>
+            <span className="text-sm font-mono font-bold text-white tracking-tight">OmniEdge</span>
+            <span className="text-[10px] font-mono text-[#555]">IDE</span>
           </div>
+          <div className="h-4 w-px bg-[#222]" />
+          <nav className="flex items-center gap-4">
+            <button className="text-[10px] font-mono text-[#00D4FF] uppercase tracking-wider">Workspace</button>
+            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Deploy</button>
+            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Fleet</button>
+            <button className="text-[10px] font-mono text-[#555] uppercase tracking-wider hover:text-[#888]">Docs</button>
+          </nav>
+        </div>
 
-          {/* Terminal Section */}
-          <div className="h-1/3 border-t panel-border overflow-hidden">
-            <Terminal isRunning={isRunning} />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Wifi className="w-3.5 h-3.5 text-[#00FF88]" />
+            <span className="text-[9px] font-mono text-[#888]">CONNECTED</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Battery className="w-3.5 h-3.5 text-[#FFAA00]" />
+            <span className="text-[9px] font-mono text-[#888]">78%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 text-[#00D4FF]" />
+            <span className="text-[9px] font-mono text-[#888]">STM32H7</span>
+          </div>
+          <div className="h-4 w-px bg-[#222]" />
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-[#555]" />
+            <span className="text-[9px] font-mono text-[#888]">{time}</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Secondary Bar */}
+      <div className="h-8 flex items-center justify-between px-4 border-b border-[#222] bg-[#050505]">
+        <div className="flex items-center gap-3">
+          <span className="text-[9px] font-mono text-[#555]">PROJECT:</span>
+          <span className="text-[9px] font-mono text-white">bionic-arm-vla-v2</span>
+          <div className="w-px h-3 bg-[#222]" />
+          <span className="text-[9px] font-mono text-[#555]">BRANCH:</span>
+          <span className="text-[9px] font-mono text-[#00FF88]">main</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-[#00FF88] animate-pulse" />
+            <span className="text-[9px] font-mono text-[#00FF88]">SIMULATION ACTIVE</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono text-[#555]">UPTIME:</span>
+            <span className="text-[9px] font-mono text-[#888]">{formatUptime(uptime)}</span>
           </div>
         </div>
       </div>
+
+      {/* Main Content - 3 Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Code Workspace */}
+        <div className="w-80 shrink-0">
+          <CodeWorkspace />
+        </div>
+
+        {/* Center: Neural-Physical Viewport */}
+        <div className="flex-1 min-w-0">
+          <NeuralViewport />
+        </div>
+
+        {/* Right: Edge Analytics Panel */}
+        <div className="w-80 shrink-0">
+          <EdgeAnalytics />
+        </div>
+      </div>
+
+      {/* Bottom: Agent Advisory */}
+      <AgentAdvisory />
+
+      {/* Status Footer */}
+      <footer className="h-6 flex items-center justify-between px-4 border-t border-[#222] bg-[#050505]">
+        <div className="flex items-center gap-4">
+          <span className="text-[8px] font-mono text-[#333]">OmniEdge IDE v0.9.4-beta</span>
+          <span className="text-[8px] font-mono text-[#333]">|</span>
+          <span className="text-[8px] font-mono text-[#333]">Hardware-as-Code Runtime</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-[8px] font-mono text-[#333]">ARM Cortex-M7 Emulation</span>
+          <span className="text-[8px] font-mono text-[#333]">|</span>
+          <span className="text-[8px] font-mono text-[#00FF88]">3 Neural Agents Online</span>
+        </div>
+      </footer>
     </div>
   );
 }
