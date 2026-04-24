@@ -1,9 +1,12 @@
-import { useState } from "react"
+"use client"
+
+import { useMemo, useState } from "react"
 import { OmniSidebar, type SectionId } from "@/components/omni/sidebar"
 import { YamlEditor } from "@/components/omni/yaml-editor"
 import { McuViewport } from "@/components/omni/mcu-viewport"
 import { OracleStats } from "@/components/omni/oracle-stats"
 import { PeripheralTree } from "@/components/omni/peripheral-tree"
+import { OracleChat } from "@/components/omni/oracle-chat"
 import { useHardware } from "@/hooks/use-hardware"
 
 const DEFAULT_MANIFEST = `# OmniEdge Studio · Hardware Manifest
@@ -43,6 +46,36 @@ export default function Page() {
 
   const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb, pinConflicts, busUtilization, components } =
     useHardware(yaml)
+
+  // Snapshot sent to the Oracle Agent on every message.
+  const oracleSnapshot = useMemo(
+    () => ({
+      mcuId: mcu.id,
+      mcuFullName: mcu.fullName,
+      mcuSramKb: mcu.sramKb,
+      mcuFlashKb: mcu.flashKb,
+      mcuClockMhz: mcu.defaultClockMhz,
+      effectiveSramKb,
+      effectiveFlashKb,
+      effectiveClockMhz,
+      activeBuses: Array.from(activeBuses),
+      busUtilization,
+      pinConflicts,
+      components: components.map((c) => ({ name: c.name, type: c.type, bus: c.bus, pins: c.pins })),
+      activePinCount: activePinIds.size,
+    }),
+    [
+      mcu,
+      effectiveSramKb,
+      effectiveFlashKb,
+      effectiveClockMhz,
+      activeBuses,
+      busUtilization,
+      pinConflicts,
+      components,
+      activePinIds,
+    ],
+  )
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-[#050505]">
@@ -111,13 +144,18 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Bottom — Peripheral Tree with bandwidth utilization */}
-          <div className="h-32 shrink-0 border-t border-[#1A1A1A]">
-            <PeripheralTree
-              busUtilization={busUtilization}
-              pinConflicts={pinConflicts}
-              components={components}
-            />
+          {/* Bottom — Peripheral Tree (left) + Oracle Agent Chat (right) */}
+          <div className="flex h-64 shrink-0 border-t border-[#1A1A1A]">
+            <div className="flex-1 min-w-0 border-r border-[#1A1A1A]">
+              <PeripheralTree
+                busUtilization={busUtilization}
+                pinConflicts={pinConflicts}
+                components={components}
+              />
+            </div>
+            <div className="w-[440px] shrink-0">
+              <OracleChat snapshot={oracleSnapshot} />
+            </div>
           </div>
         </div>
 
