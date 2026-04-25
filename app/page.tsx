@@ -1,16 +1,17 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { OmniSidebar, type SectionId } from "@/components/omni/sidebar"
-import { YamlEditor } from "@/components/omni/yaml-editor"
-import { McuViewport } from "@/components/omni/mcu-viewport"
-import { OracleStats } from "@/components/omni/oracle-stats"
-import { PeripheralTree } from "@/components/omni/peripheral-tree"
-import { OracleChat } from "@/components/omni/oracle-chat"
-import { useHardware } from "@/hooks/use-hardware"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { TopBar } from "@/components/top-bar"
+import { YamlEditor } from "@/components/yaml-editor"
+import { McuSchematic } from "@/components/mcu-schematic"
+import { OracleChat, type OracleMessage } from "@/components/oracle-chat"
+import { MCU_MODELS, type BusId } from "@/lib/mcu-data"
+import { parseManifest } from "@/lib/yaml-parser"
 
-const DEFAULT_MANIFEST = `# OmniEdge Studio · Hardware Manifest
-# Edit values to reconfigure the silicon.
+const BACKEND_URL = "http://localhost:8000/api/oracle"
+
+const DEFAULT_MANIFEST = `# omniedge :: hardware_manifest.yaml
+# Live silicon configuration. Edit any value to reconfigure the chip.
 
 mcu_id: STM32H7
 clock_mhz: 480
@@ -26,157 +27,250 @@ peripherals:
   can_bus: disabled
   usb: enabled        # routes OTG_FS (DM/DP)
 
-# Components section (optional)
 components:
   - name: lidar_0
     type: lidar
     pins: [PA5, PA6]
-  # Try adding: - name: sensor_0, type: sensor, pins: [PB6]
+  - name: imu_0
+    type: imu
+    pins: [PB6, PB7]
 `
+
+let _id = 0
+const nextId = () => `m_${Date.now()}_${++_id}`
 
 export default function Page() {
   const [yaml, setYaml] = useState(DEFAULT_MANIFEST)
-  const [section, setSection] = useState<SectionId>("hardware")
-  const [pristine, setPristine] = useState(true)
+  const [modelId, setModelId] = useState<string>("STM32H7")
+  const [messages, setMessages] = useState<OracleMessage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [lastError, setLastError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  // Debounce timer for auto-syncing YAML changes to the backend.
+  const yamlSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleYamlChange = (next: string) => {
-    setYaml(next)
-    if (pristine) setPristine(false)
-  }
+  // Parse manifest on every change.
+  const parsed = useMemo(() => parseManifest(yaml), [yaml])
 
-  const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb, pinConflicts, busUtilization, components } =
-    useHardware(yaml)
+  // Resolve effective MCU: top-bar selector wins, but if YAML defines a known
+  // mcu_id, the YAML value drives the selector.
+  const effectiveModelId = useMemo(() => {
+    if (parsed.mcuId && MCU_MODELS[parsed.mcuId]) return parsed.mcuId
+    return modelId
+  }, [parsed.mcuId, modelId])
 
-  // Snapshot sent to the Oracle Agent on every message.
-  const oracleSnapshot = useMemo(
-    () => ({
-      mcuId: mcu.id,
-      mcuFullName: mcu.fullName,
-      mcuSramKb: mcu.sramKb,
-      mcuFlashKb: mcu.flashKb,
-      mcuClockMhz: mcu.defaultClockMhz,
-      effectiveSramKb,
-      effectiveFlashKb,
-      effectiveClockMhz,
-      activeBuses: Array.from(activeBuses),
-      busUtilization,
-      pinConflicts,
-      components: components.map((c) => ({ name: c.name, type: c.type, bus: c.bus, pins: c.pins })),
-      activePinCount: activePinIds.size,
-    }),
-    [
-      mcu,
-      effectiveSramKb,
-      effectiveFlashKb,
-      effectiveClockMhz,
-      activeBuses,
-      busUtilization,
-      pinConflicts,
-      components,
-      activePinIds,
-    ],
+  const mcu = MCU_MODELS[effectiveModelId] ?? MCU_MODELS.STM32H7
+
+  // Active buses
+  const activeBuses = useMemo<Set<BusId>>(() => {
+    const s = new Set<BusId>()
+    ;(Object.keys(parsed.buses) as BusId[]).forEach((k) => {
+      if (parsed.buses[k]) s.add(k)
+    })
+    return s
+  }, [parsed.buses])
+
+  // Component-pin highlights
+  const highlightedPinIds = useMemo(() => {
+    const s = new Set<string>()
+    parsed.components.forEach((c) => c.pins.forEach((p) => s.add(p)))
+    return s
+  }, [parsed.components])
+
+  // ----- Oracle dispatch -----
+
+  const callOracle = useCallback(
+    async (
+      question: string | null,
+      options: { yamlSnapshot: string; trigger: "user" | "yaml-sync" } = {
+        yamlSnapshot: yaml,
+        trigger: "user",
+      },
+    ) => {
+      // Abort any in-flight request
+      abortRef.current?.abort()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+
+      setLoading(true)
+      setLastError(null)
+
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            yaml: options.yamlSnapshot,
+            question,
+            model: effectiveModelId,
+            trigger: options.trigger,
+          }),
+          signal: ctrl.signal,
+        })
+
+        if (!res.ok) {
+          throw new Error(`Backend responded ${res.status}`)
+        }
+
+        // Try to parse JSON; tolerate text fallbacks.
+        const text = await res.text()
+        let payload: { answer?: string; tokens_out?: number } = {}
+        try {
+          payload = JSON.parse(text)
+        } catch {
+          payload = { answer: text }
+        }
+
+        const answer =
+          payload.answer ?? "[oracle returned an empty payload]"
+
+        if (options.trigger === "user") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: nextId(),
+              role: "oracle",
+              content: answer,
+              timestamp: Date.now(),
+              meta: { tokensOut: payload.tokens_out },
+            },
+          ])
+        }
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return
+        const errMsg =
+          err instanceof Error ? err.message : "Unknown error reaching oracle backend"
+        setLastError(`POST ${BACKEND_URL} → ${errMsg}`)
+
+        if (options.trigger === "user") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: nextId(),
+              role: "oracle",
+              content: `[oracle unreachable] Failed to POST to ${BACKEND_URL}.\nReason: ${errMsg}\n\nMake sure the silicon-agent backend is running on :8000.`,
+              timestamp: Date.now(),
+              meta: { error: true },
+            },
+          ])
+        }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [effectiveModelId, yaml],
   )
 
+  // ----- Chat send handler -----
+
+  const handleSend = useCallback(
+    (text: string) => {
+      const userMsg: OracleMessage = {
+        id: nextId(),
+        role: "user",
+        content: text,
+        timestamp: Date.now(),
+      }
+      setMessages((prev) => [...prev, userMsg])
+      callOracle(text, { yamlSnapshot: yaml, trigger: "user" })
+    },
+    [callOracle, yaml],
+  )
+
+  // ----- YAML change handler with debounced auto-sync to backend -----
+
+  const handleYamlChange = useCallback(
+    (next: string) => {
+      setYaml(next)
+      if (yamlSyncTimer.current) clearTimeout(yamlSyncTimer.current)
+      yamlSyncTimer.current = setTimeout(() => {
+        callOracle(null, { yamlSnapshot: next, trigger: "yaml-sync" })
+      }, 800)
+    },
+    [callOracle],
+  )
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      if (yamlSyncTimer.current) clearTimeout(yamlSyncTimer.current)
+    }
+  }, [])
+
+  // Top-bar model change → patch YAML
+  const handleModelChange = useCallback((id: string) => {
+    setModelId(id)
+    setYaml((prev) => {
+      // Replace existing mcu_id line; if absent, prepend.
+      if (/^mcu_id\s*:.*$/m.test(prev)) {
+        return prev.replace(/^mcu_id\s*:.*$/m, `mcu_id: ${id}`)
+      }
+      return `mcu_id: ${id}\n${prev}`
+    })
+  }, [])
+
+  const status: "idle" | "loading" | "error" | "ready" = loading
+    ? "loading"
+    : lastError
+      ? "error"
+      : messages.length > 0
+        ? "ready"
+        : "idle"
+
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-[#050505]">
-      <OmniSidebar active={section} onSelect={setSection} />
+    <main className="flex h-screen w-screen flex-col overflow-hidden bg-[#050505]">
+      <TopBar modelId={effectiveModelId} onModelChange={handleModelChange} status={status} />
 
-      <div className="flex flex-1 min-w-0 flex-col">
-        {/* Workspace header */}
-        <header className="flex h-9 shrink-0 items-center justify-between border-b border-[#1A1A1A] bg-[#0A0A0A] px-4">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white">
-              OmniEdge Studio
-            </span>
-            <span className="text-[#1A1A1A]">/</span>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[#666]">
-              {section === "hardware" ? "Hardware-as-Code" : section}
-            </span>
-            <span className="text-[#1A1A1A]">/</span>
-            <span className="font-mono text-[10px] text-[#444]">stage 1</span>
-          </div>
-          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-[#666]">
-              <span className="h-1.5 w-1.5 bg-[#39FF14] shadow-[0_0_6px_rgba(57,255,20,0.8)]" />
-              Manifest synced
-            </span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#666]">
-              MCU <span className="text-[#00E5FF]">{mcu.id}</span>
-            </span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#666]">
-              Buses <span className="text-white">{activeBuses.size}</span>/5
-            </span>
-          </div>
-        </header>
-
-        {/* 3-pane workspace with bottom peripheral tree */}
-        <div className="flex flex-1 min-h-0 flex-col">
-          <div className="flex flex-1 min-h-0">
-            {/* Left — YAML editor */}
-            <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
-              <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
-            </div>
-
-            {/* Center — MCU viewport */}
-            <div className="flex-1 min-w-0">
-              <McuViewport
-                mcu={mcu}
-                activePinIds={activePinIds}
-                activeBuses={activeBuses}
-                components={components}
-                pinConflicts={pinConflicts}
-              />
-            </div>
-
-            {/* Right — Oracle stats */}
-            <div className="w-[300px] shrink-0">
-              <OracleStats
-                mcu={mcu}
-                config={config}
-                effectiveClockMhz={effectiveClockMhz}
-                effectiveFlashKb={effectiveFlashKb}
-                effectiveSramKb={effectiveSramKb}
-                activeBuses={activeBuses}
-                activeBusPinCount={activePinIds.size}
-              />
-            </div>
-          </div>
-
-          {/* Bottom — Peripheral Tree (left) + Oracle Agent Chat (right) */}
-          <div className="flex h-64 shrink-0 border-t border-[#1A1A1A]">
-            <div className="flex-1 min-w-0 border-r border-[#1A1A1A]">
-              <PeripheralTree
-                busUtilization={busUtilization}
-                pinConflicts={pinConflicts}
-                components={components}
-              />
-            </div>
-            <div className="w-[440px] shrink-0">
-              <OracleChat snapshot={oracleSnapshot} />
-            </div>
-          </div>
+      <div className="flex flex-1 min-h-0">
+        {/* LEFT — YAML editor */}
+        <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
+          <YamlEditor value={yaml} onChange={handleYamlChange} />
         </div>
 
-        {/* Status bar */}
-        <footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
-          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-            <span>OmniEdge Studio v0.1-beta</span>
-            <span className="text-[#222]">·</span>
-            <span>Hardware-as-Code Runtime</span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#00E5FF]">HAL · {mcu.vendor.split(" ")[0]}</span>
-          </div>
-          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-            <span>{mcu.core}</span>
-            <span className="text-[#222]">·</span>
-            <span>{effectiveClockMhz} MHz</span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#39FF14]">Schema valid</span>
-          </div>
-        </footer>
+        {/* CENTER — MCU schematic */}
+        <div className="min-w-0 flex-1">
+          <McuSchematic
+            mcu={mcu}
+            activeBuses={activeBuses}
+            highlightedPinIds={highlightedPinIds}
+          />
+        </div>
+
+        {/* RIGHT — Oracle chat */}
+        <div className="flex w-[420px] shrink-0 flex-col border-l border-[#1A1A1A]">
+          <OracleChat
+            messages={messages}
+            onSend={handleSend}
+            loading={loading}
+            modelId={effectiveModelId}
+            backendUrl={BACKEND_URL}
+            lastError={lastError}
+          />
+        </div>
       </div>
+
+      {/* Bottom status bar */}
+      <footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+        <div className="flex items-center gap-3">
+          <span>OmniEdge Studio v0.1-beta</span>
+          <span className="text-[#222]">·</span>
+          <span>silicon-intelligence runtime</span>
+          <span className="text-[#222]">·</span>
+          <span className="text-[#00E5FF]">HAL · {mcu.vendor.split(" ")[0]}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span>{mcu.core}</span>
+          <span className="text-[#222]">·</span>
+          <span>{parsed.clockMhz ?? mcu.defaultClockMhz} MHz</span>
+          <span className="text-[#222]">·</span>
+          <span>flash {parsed.flashKb ?? mcu.flashKb}kb</span>
+          <span className="text-[#222]">·</span>
+          <span>sram {parsed.sramKb ?? mcu.sramKb}kb</span>
+          <span className="text-[#222]">·</span>
+          <span className="text-[#39FF14]">schema valid</span>
+        </div>
+      </footer>
     </main>
   )
 }
