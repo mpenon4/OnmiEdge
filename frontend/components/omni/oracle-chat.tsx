@@ -274,10 +274,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     </div>
   )
 }
-      </div>
-    </div>
-  )
-}
+    
 
 function ToolInvocation({ part }: { part: any }) {
   const state = part.state as
@@ -444,6 +441,40 @@ function HardwareHealthCard({ report }: { report: Exclude<ValidateOutput, { erro
         {/* Issues list */}
         {report.issues.length > 0 && (
           <div className="space-y-1 border-t border-[#1A1A1A] pt-2">
+            <div className="font-mono text-[9px] uppercase tracking-wider text-[#666]">
+              Diagnostics
+            </div>
+            {report.issues.map((issue, i) => {
+              const color =
+                issue.severity === "critical"
+                  ? "#FF3D00"
+                  : issue.severity === "warning"
+                    ? "#FFAA00"
+                    : "#00E5FF"
+              return (
+                <div key={i} className="flex items-start gap-2">
+                  <div
+                    className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: color, boxShadow: `0 0 3px ${color}` }}
+                  />
+                  <span className="font-mono text-[10px] leading-relaxed" style={{ color }}>
+                    {issue.message}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-[#1A1A1A] pt-1.5 font-mono text-[8px] uppercase tracking-wider text-[#444]">
+          <span>validateConfiguration() → {report.verdict}</span>
+          <span>{new Date(report.timestamp).toLocaleTimeString("en-US", { hour12: false })}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
             <div className="font-mono text-[9px] uppercase tracking-wider text-[#666]">
               Diagnostics
             </div>
