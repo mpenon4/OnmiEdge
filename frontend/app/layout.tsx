@@ -12,13 +12,16 @@ export const metadata: Metadata = {
   generator: 'v0.app',
 }
 
+// frontend/app/layout.tsx
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-[#050505]">
+    // Agregamos suppressHydrationWarning para evitar el error de discordancia de estilos/clases
+    <html lang="en" className="bg-[#050505]" suppressHydrationWarning>
       <head>
         <style>{`
           :root {

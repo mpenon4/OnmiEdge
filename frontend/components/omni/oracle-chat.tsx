@@ -92,9 +92,9 @@ export function OracleChat({ snapshot }: OracleChatProps) {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setLoading(true)
-
-    try {
-      const response = await fetch("http://localhost:8000/api/oracle", {
+try {
+      // 1. Usamos la ruta relativa para que Next.js la redirija al puerto 3001
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,8 +103,12 @@ export function OracleChat({ snapshot }: OracleChatProps) {
           mcu_id: snapshot.mcuId,
           hardware_manifest: hardwareManifest || {},
           query: input,
-        }),
-      })
+          // Pasamos el snapshot para que el Oracle sepa qué hardware tenemos
+          snapshot: snapshot, 
+        }), // Cierra el JSON.stringify
+      }); // Cierra el fetch
+
+      // El resto del código para manejar la respuesta...
 
       if (response.ok) {
         const data = await response.json()
