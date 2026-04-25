@@ -35,7 +35,7 @@ yarn-error.log*
 Thumbs.db
 
 # Environment
-.env
+*.env
 .env.local
 .env.*.local
 
