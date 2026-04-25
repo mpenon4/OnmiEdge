@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import yaml # Esta librería es la que lee tu archivo .yaml
 
-app = FastAPI()
+# Importar la lógica de simulación desde core
+from core.simulator import get_hardware_status
 
-# Esto permite que tu frontend (v0) pueda hablar con este motor de Python
+app = FastAPI(title="OmniEdge Studio - Hardware Engine")
+
+# CORS - permite que el frontend (v0) pueda hablar con este motor
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -12,27 +14,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def home():
-    return {"mensaje": "OmniEdge Engine Online 🚀"}
+    """Endpoint de bienvenida."""
+    return {
+        "mensaje": "OmniEdge Engine Online 🚀",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
 
 @app.get("/status")
-def get_hardware_status():
-    # Abrimos y leemos el archivo que creaste recién
-    with open("hardware_manifest.yaml", "r") as file:
-        data = yaml.safe_load(file)
+def status():
+    """
+    Endpoint principal que retorna el estado del hardware.
     
-    # Simulamos un procesamiento de ingeniería
-    mcu = data['target_hardware']['mcu_id']
-    sram = data['target_hardware']['sram']
-    
-    # Enviamos la respuesta procesada
-    return {
-        "mcu_detectado": mcu,
-        "memoria_disponible": sram,
-        "estado": "Sincronizado",
-        "telemetria": {
-            "cpu_usage": "15%",
-            "temp": "38°C"
-        }
-    }
+    Utiliza la lógica centralizada en core.simulator.
+    Integrable con MCP y otros protocolos.
+    """
+    return get_hardware_status()
+
+
+@app.get("/health")
+def health_check():
+    """Health check para orchestración."""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
