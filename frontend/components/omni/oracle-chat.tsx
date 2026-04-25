@@ -1,8 +1,6 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
 import { Send, Sparkles, AlertTriangle, CheckCircle2, AlertCircle, Loader2, Cpu } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -26,6 +24,12 @@ interface OracleChatProps {
   snapshot: HardwareSnapshot
 }
 
+interface ChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
+
 type ValidateOutput = {
   verdict: "VALID" | "VALID_WITH_WARNINGS" | "INVALID"
   headline: string
@@ -46,36 +50,102 @@ type ValidateOutput = {
 
 export function OracleChat({ snapshot }: OracleChatProps) {
   const [input, setInput] = useState("")
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [hardwareManifest, setHardwareManifest] = useState<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest: ({ messages }) => ({
-        body: { messages, hardwareSnapshot: snapshot },
-      }),
-    }),
-  })
+  // Cargar el hardware manifest del servidor
+  useEffect(() => {
+    const loadHardwareManifest = async () => {
+      try {
+        const response = await fetch("/api/hardware-manifest")
+        if (response.ok) {
+          const data = await response.json()
+          setHardwareManifest(data)
+        }
+      } catch (error) {
+        console.error("Error loading hardware manifest:", error)
+        // Si no está disponible localmente, usar un objeto vacío
+        setHardwareManifest({})
+      }
+    }
+    loadHardwareManifest()
+  }, [])
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages, status])
+  }, [messages, loading])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || status === "streaming" || status === "submitted") return
-    sendMessage({ text: input })
+    if (!input.trim() || loading) return
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: input,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
     setInput("")
+    setLoading(true)
+
+    try {
+      const response = await fetch("http://localhost:8000/api/oracle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mcu_id: snapshot.mcuId,
+          hardware_manifest: hardwareManifest || {},
+          query: input,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: data.message || "Análisis completado",
+        }
+        setMessages((prev) => [...prev, assistantMessage])
+      } else {
+        const errorMessage: ChatMessage = {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: "Error en la respuesta del servidor",
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleQuickPrompt = (prompt: string) => {
-    if (status === "streaming" || status === "submitted") return
-    sendMessage({ text: prompt })
+    if (loading) return
+    setInput(prompt)
+    // Simulamos un submit automático después de establecer el input
+    setTimeout(() => {
+      const form = document.querySelector("form") as HTMLFormElement
+      if (form) form.dispatchEvent(new Event("submit", { bubbles: true }))
+    }, 0)
   }
 
-  const busy = status === "streaming" || status === "submitted"
+  const busy = loading
 
   return (
     <div className="flex h-full flex-col bg-[#050505]">
@@ -183,8 +253,6 @@ function EmptyState({ onPrompt }: { onPrompt: (p: string) => void }) {
   )
 }
 
-type ChatMessage = ReturnType<typeof useChat>["messages"][number]
-
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user"
 
@@ -193,31 +261,19 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <span className="font-mono text-[9px] uppercase tracking-wider text-[#444]">
         {isUser ? "USER" : "ORACLE"}
       </span>
-      <div className="max-w-full space-y-2">
-        {message.parts?.map((part, i) => {
-          if (part.type === "text") {
-            return (
-              <div
-                key={i}
-                className={cn(
-                  "border px-2 py-1.5 font-mono text-[11px] leading-relaxed",
-                  isUser
-                    ? "border-[#1A1A1A] bg-[#0A0A0A] text-white"
-                    : "border-[#1A1A1A] bg-[#050505] text-[#CCC]",
-                )}
-              >
-                {part.text}
-              </div>
-            )
-          }
-
-          // Render the validateConfiguration tool output as a Hardware Health card.
-          if (part.type === "tool-validateConfiguration") {
-            return <ToolInvocation key={i} part={part} />
-          }
-
-          return null
-        })}
+      <div
+        className={cn(
+          "max-w-full border px-2 py-1.5 font-mono text-[11px] leading-relaxed",
+          isUser
+            ? "border-[#1A1A1A] bg-[#0A0A0A] text-white"
+            : "border-[#1A1A1A] bg-[#050505] text-[#CCC]",
+        )}
+      >
+        {message.content}
+      </div>
+    </div>
+  )
+}
       </div>
     </div>
   )
