@@ -1,35 +1,79 @@
-# v0-onmiedge
+# OmniEdge Studio
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
-
-## Built with v0
-
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+Unified Robotics IDE — monorepo.
 
 [Continue working on v0 →](https://v0.app/chat/projects/prj_HUwNXzAEAj5k3XqhfIDW43D3F6T4)
 
-## Getting Started
+## Workspace layout
 
-First, run the development server:
+```
+.
+├── frontend/       Next.js 16 + Tailwind 4 + shadcn/ui (UI only — no API routes)
+├── backend/        Hono + AI SDK 6 — Oracle agent + validateConfiguration tool
+└── package.json    Workspace root (pnpm + concurrently)
+```
+
+## Architecture
+
+The frontend has **no `app/api/` route handlers**. Instead, `frontend/next.config.mjs`
+declares a server-side rewrite that proxies `/api/*` → `${BACKEND_URL}/*`. The
+browser always fetches same-origin (no CORS), but the actual request handling
+happens in the Hono backend, which is fully decoupled and independently
+deployable.
+
+```
+Browser ──► /api/chat (same-origin)
+            │
+            ▼
+       Next.js rewrite (server-side)
+            │
+            ▼
+       BACKEND_URL/chat (Hono)
+            │
+            ▼
+       AI SDK 6 streamText + validateConfiguration tool
+```
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This runs **both** services concurrently:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `backend` → http://localhost:3001 (Hono)
+- `frontend` → http://localhost:3000 (Next.js, proxies `/api/*` to backend)
 
-## Learn More
+Open http://localhost:3000 — the Oracle chat in the bottom-right panel will
+work out of the box.
 
-To learn more, take a look at the following resources:
+To run them independently:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+```bash
+pnpm dev:backend
+pnpm dev:frontend
+```
 
-<a href="https://v0.app/chat/api/kiro/clone/mpenon4/v0-onmiedge" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+## Production deployment
+
+Deploy each workspace as its own Vercel project:
+
+1. **Backend**: deploy `/backend` as a Node.js project. Note its public URL
+   (e.g. `https://omniedge-backend.vercel.app`).
+2. **Frontend**: deploy `/frontend` and set `BACKEND_URL=https://omniedge-backend.vercel.app`
+   in Vercel project env. The rewrite picks it up at build time.
+
+## Adding a new tool to the Oracle agent
+
+1. Define the tool in `backend/src/oracle.ts` (or a new file imported there).
+2. The frontend automatically renders any `tool-<toolName>` part of the
+   streamed message — see `frontend/components/omni/oracle-chat.tsx`.
+
+## Notes
+
+- The frontend bundle no longer ships `streamText` / `convertToModelMessages` /
+  `tool` — those are server-only and live in the backend.
+- The frontend keeps `ai` for `DefaultChatTransport` and `UIMessage` types,
+  and `@ai-sdk/react` for the `useChat` hook.
