@@ -35,7 +35,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`dark bg-background ${inter.variable} ${jetbrainsMono.variable}`}>
+    // Se agrega suppressHydrationWarning para evitar el error de mismatch con extensiones o temas
+    <html 
+      lang="en" 
+      className={`dark bg-background ${inter.variable} ${jetbrainsMono.variable}`} 
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased overflow-hidden">
         {children}
         {process.env.NODE_ENV === "production" && <Analytics />}
