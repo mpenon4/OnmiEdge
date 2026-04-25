@@ -1,55 +1,98 @@
-# OmniEdge Studio
+# OmniEdge Studio · Monorepo
 
-Unified Robotics IDE — monorepo.
+Full-stack hardware configuration and debugging platform combining Next.js frontend with FastAPI backend.
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_HUwNXzAEAj5k3XqhfIDW43D3F6T4)
-
-## Workspace layout
+## 📁 Project Structure
 
 ```
-.
-├── frontend/       Next.js 16 + Tailwind 4 + shadcn/ui (UI only — no API routes)
-├── backend/        Hono + AI SDK 6 — Oracle agent + validateConfiguration tool
-└── package.json    Workspace root (pnpm + concurrently)
+omniedge-studio/
+├── /frontend          # Next.js UI
+│   ├── /app
+│   ├── /components
+│   ├── /hooks
+│   ├── package.json
+│   └── Dockerfile
+├── /backend           # FastAPI engine
+│   ├── main.py
+│   ├── hardware_manifest.yaml
+│   ├── requirements.txt
+│   └── Dockerfile
+├── docker-compose.yml # Run everything locally
+└── .github/workflows  # CI/CD automation
 ```
 
-## Architecture
+## 🚀 Quick Start
 
-The frontend has **no `app/api/` route handlers**. Instead, `frontend/next.config.mjs`
-declares a server-side rewrite that proxies `/api/*` → `${BACKEND_URL}/*`. The
-browser always fetches same-origin (no CORS), but the actual request handling
-happens in the Hono backend, which is fully decoupled and independently
-deployable.
-
+### Option 1: Docker Compose (Recommended)
+```bash
+docker-compose up
 ```
-Browser ──► /api/chat (same-origin)
-            │
-            ▼
-       Next.js rewrite (server-side)
-            │
-            ▼
-       BACKEND_URL/chat (Hono)
-            │
-            ▼
-       AI SDK 6 streamText + validateConfiguration tool
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
+
+### Option 2: Manual Setup
+
+**Backend:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-## Local development
+**Frontend (in new terminal):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 🌳 Git Branching Strategy
+
+- `main` - Production-ready code
+- `develop` - Integration branch  
+- `feature/*` - Individual feature branches
+
+## 👥 Team Collaboration Workflow
+
+### For Each Team Member:
 
 ```bash
-pnpm install
-pnpm dev
+# 1. Get latest develop
+git checkout develop
+git pull origin develop
+
+# 2. Create your feature branch
+git checkout -b feature/your-feature-name
+
+# 3. Work on your changes (isolated from teammates)
+
+# 4. Commit frequently
+git add .
+git commit -m "feat: your changes"
+git push origin feature/your-feature-name
+
+# 5. Create Pull Request on GitHub for review
+# -> Team reviews and approves
+# -> Merge to develop
+# -> Delete feature branch
 ```
 
-This runs **both** services concurrently:
+### Suggested Role Division:
 
-- `backend` → http://localhost:3001 (Hono)
-- `frontend` → http://localhost:3000 (Next.js, proxies `/api/*` to backend)
+- **Frontend Developer:** Work in `/frontend`
+  - UI Components
+  - State Management
+  - Styling
 
-Open http://localhost:3000 — the Oracle chat in the bottom-right panel will
-work out of the box.
+- **Backend Developer:** Work in `/backend`
+  - API Endpoints
+  - Hardware Integration
+  - Telemetry Logic
 
-To run them independently:
+### Learn More
 
 ```bash
 pnpm dev:backend
