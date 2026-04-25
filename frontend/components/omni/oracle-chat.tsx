@@ -274,10 +274,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     </div>
   )
 }
-      </div>
-    </div>
-  )
-}
 
 function ToolInvocation({ part }: { part: any }) {
   const state = part.state as
