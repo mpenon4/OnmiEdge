@@ -1,4 +1,16 @@
 fastapi==0.104.1
-uvicorn==0.24.0
+uvicorn[standard]==0.24.0
 pyyaml==6.0.1
 pydantic==2.5.0
+python-multipart==0.0.6
+
+# Physics simulation
+numpy>=1.24.0
+scipy>=1.11.0
+
+# MCP and AI integration (future)
+# anthropic>=0.8.0
+
+# Development & Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

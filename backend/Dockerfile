@@ -1,24 +1,25 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+# Directorio de trabajo dentro del contenedor
+WORKDIR /usr/src/app
 
-# Install system dependencies for Python packages
+# Instalamos dependencias de sistema necesarias para cálculos biónicos y simulación
+# (gcc y openblas son vitales para que numpy y scipy vuelen)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Instalamos las dependencias de Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Copiamos el resto del código del backend
 COPY . .
 
+# Exponemos el puerto de FastAPI
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=2)" || exit 1
-
+# Arrancamos el servidor
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

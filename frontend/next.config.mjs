@@ -6,6 +6,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  turbopack: {
+    root: "../", // Monorepo root
+  },
 }
 
 export default nextConfig
