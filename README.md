@@ -1,32 +1,98 @@
-# v0-onmiedge
+# OmniEdge Studio · Monorepo
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Full-stack hardware configuration and debugging platform combining Next.js frontend with FastAPI backend.
 
-## Built with v0
+## 📁 Project Structure
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
-
-[Continue working on v0 →](https://v0.app/chat/projects/prj_HUwNXzAEAj5k3XqhfIDW43D3F6T4)
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+```
+omniedge-studio/
+├── /frontend          # Next.js UI
+│   ├── /app
+│   ├── /components
+│   ├── /hooks
+│   ├── package.json
+│   └── Dockerfile
+├── /backend           # FastAPI engine
+│   ├── main.py
+│   ├── hardware_manifest.yaml
+│   ├── requirements.txt
+│   └── Dockerfile
+├── docker-compose.yml # Run everything locally
+└── .github/workflows  # CI/CD automation
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Quick Start
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Option 1: Docker Compose (Recommended)
+```bash
+docker-compose up
+```
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
 
-## Learn More
+### Option 2: Manual Setup
 
-To learn more, take a look at the following resources:
+**Backend:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+**Frontend (in new terminal):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 🌳 Git Branching Strategy
+
+- `main` - Production-ready code
+- `develop` - Integration branch  
+- `feature/*` - Individual feature branches
+
+## 👥 Team Collaboration Workflow
+
+### For Each Team Member:
+
+```bash
+# 1. Get latest develop
+git checkout develop
+git pull origin develop
+
+# 2. Create your feature branch
+git checkout -b feature/your-feature-name
+
+# 3. Work on your changes (isolated from teammates)
+
+# 4. Commit frequently
+git add .
+git commit -m "feat: your changes"
+git push origin feature/your-feature-name
+
+# 5. Create Pull Request on GitHub for review
+# -> Team reviews and approves
+# -> Merge to develop
+# -> Delete feature branch
+```
+
+### Suggested Role Division:
+
+- **Frontend Developer:** Work in `/frontend`
+  - UI Components
+  - State Management
+  - Styling
+
+- **Backend Developer:** Work in `/backend`
+  - API Endpoints
+  - Hardware Integration
+  - Telemetry Logic
+
+### Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.

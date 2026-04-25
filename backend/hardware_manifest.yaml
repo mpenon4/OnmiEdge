@@ -1,0 +1,29 @@
+# OmniEdge Studio - Hardware Manifest
+# Este archivo define la electrónica de tu proyecto biónico
+
+project_name: "Bionic_Hand_UTN"
+version: "1.0.0"
+
+target_hardware:
+  mcu_id: "STM32H7"
+  architecture: "Cortex-M7"
+  clock_speed: "480MHz"
+  sram: "2MB"
+
+# Definimos qué tenemos conectado
+components:
+  - id: "finger_servo_1"
+    type: "PWM_ACTUATOR"
+    pin: "PA8"
+    description: "Control del dedo índice"
+    
+  - id: "emg_sensor_main"
+    type: "ADC_SENSOR"
+    pin: "PC1"
+    sample_rate: "1000Hz"
+    description: "Sensor muscular de antebrazo"
+
+ai_config:
+  model_path: "./models/hand_gesture.tflite"
+  runtime: "TFLM" # TensorFlow Lite Micro
+  optimization: "int8_quantized"
