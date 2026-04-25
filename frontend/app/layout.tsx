@@ -1,15 +1,32 @@
-import type { Metadata } from 'next'
-import { Inter, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
+import type { Metadata, Viewport } from "next"
+import { Inter, JetBrains_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import "./globals.css"
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
-  title: 'OmniEdge Studio // v0.1-beta',
-  description: 'The Unified IDE for Edge-AI Robotics',
-  generator: 'v0.app',
+  title: "OmniEdge — The Figma of Embedded Hardware",
+  description:
+    "Mission-critical workstation for embedded hardware design, TinyML training, and physics simulation. Altium-grade precision for the AI era.",
+  generator: "v0.app",
+}
+
+export const viewport: Viewport = {
+  themeColor: "#050505",
+  width: "device-width",
+  initialScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
@@ -18,18 +35,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-[#050505]">
-      <head>
-        <style>{`
-          :root {
-            --font-sans: ${inter.style.fontFamily};
-            --font-mono: ${geistMono.style.fontFamily};
-          }
-        `}</style>
-      </head>
-      <body className="font-sans antialiased bg-[#050505] text-white overflow-hidden">
+    <html lang="en" className={`dark bg-background ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased overflow-hidden">
         {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   )
