@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { OmniSidebar, type SectionId } from "@/components/omni/sidebar"
 import { YamlEditor } from "@/components/omni/yaml-editor"
 import { McuViewport } from "@/components/omni/mcu-viewport"
@@ -38,6 +38,23 @@ export default function Page() {
   const [yaml, setYaml] = useState(DEFAULT_MANIFEST)
   const [section, setSection] = useState<SectionId>("hardware")
   const [pristine, setPristine] = useState(true)
+  
+  // --- AGREGAMOS ESTO PARA LA TELEMETRÍA REAL ---
+  const [telemetry, setTelemetry] = useState({ cpu_usage: "0%", temp: "0°C" })
+
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/status')
+        const data = await res.json()
+        setTelemetry(data.telemetria) // Actualizamos con lo que dice Python
+      } catch (e) {
+        console.log("Esperando al servidor Python...")
+      }
+    }, 1000) // Se actualiza cada 1 segundo
+    return () => clearInterval(timer)
+  }, [])
+  // ----------------------------------------------
 
   const handleYamlChange = (next: string) => {
     setYaml(next)
@@ -160,22 +177,22 @@ export default function Page() {
         </div>
 
         {/* Status bar */}
-        <footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
-          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-            <span>OmniEdge Studio v0.1-beta</span>
-            <span className="text-[#222]">·</span>
-            <span>Hardware-as-Code Runtime</span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#00E5FF]">HAL · {mcu.vendor.split(" ")[0]}</span>
-          </div>
-          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-            <span>{mcu.core}</span>
-            <span className="text-[#222]">·</span>
-            <span>{effectiveClockMhz} MHz</span>
-            <span className="text-[#222]">·</span>
-            <span className="text-[#39FF14]">Schema valid</span>
-          </div>
-        </footer>
+<footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
+  <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+    <span>OmniEdge Studio v0.1-beta</span>
+    <span className="text-[#222]">·</span>
+    <span className="text-[#39FF14] animate-pulse">LIVE</span> {/* Un toque de facha */}
+    <span className="text-[#222]">·</span>
+    <span className="text-[#00E5FF]">CPU: {telemetry.cpu_usage}</span> {/* DATO REAL */}
+  </div>
+  <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+    <span>TEMP: <span className={parseInt(telemetry.temp) > 70 ? "text-red-500" : "text-[#39FF14]"}>{telemetry.temp}</span></span> {/* DATO REAL CON ALERTA */}
+    <span className="text-[#222]">·</span>
+    <span>{effectiveClockMhz} MHz</span>
+    <span className="text-[#222]">·</span>
+    <span className="text-[#39FF14]">Schema valid</span>
+  </div>
+</footer>
       </div>
     </main>
   )
