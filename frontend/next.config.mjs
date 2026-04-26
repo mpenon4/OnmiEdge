@@ -1,17 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Ignoramos errores de tipos para que el deploy pase rápido
   typescript: {
+    // Esto lo dejamos para que el deploy pase aunque haya errores de tipos
     ignoreBuildErrors: true,
-  },
-  // Desactivamos ESLint en el build para evitar trabas por sintaxis
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   images: {
     unoptimized: true,
   },
-  // Borramos la parte de Turbopack y __dirname que está rompiendo el ruteo en Vercel
+  // Sacamos el bloque de eslint que tiraba el warning
 }
 
 export default nextConfig
