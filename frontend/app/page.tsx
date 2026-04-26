@@ -8,6 +8,10 @@ import { OracleStats } from "@/components/omni/oracle-stats"
 import { PeripheralTree } from "@/components/omni/peripheral-tree"
 import { OracleChat } from "@/components/omni/oracle-chat"
 import { useHardware } from "@/hooks/use-hardware"
+// ← NUEVO: importar el DebugPanel
+// Sin las llaves { }
+// Probá con llaves si el componente fue exportado como función nombrada
+import { DebugPanel } from "@/components/debug/DebugPanel"
 
 const DEFAULT_MANIFEST = `# OmniEdge Studio · Hardware Manifest
 # Edit values to reconfigure the silicon.
@@ -38,33 +42,36 @@ export default function Page() {
   const [yaml, setYaml] = useState(DEFAULT_MANIFEST)
   const [section, setSection] = useState<SectionId>("hardware")
   const [pristine, setPristine] = useState(true)
-  
-  // --- AGREGAMOS ESTO PARA LA TELEMETRÍA REAL ---
-  const [telemetry, setTelemetry] = useState({ cpu_usage: "0%", temp: "0°C" })
 
+ // Forzamos que siempre existan los campos, aunque sea vacíos
+const [telemetry, setTelemetry] = useState({ 
+  cpu_usage: "0%", 
+  temp: "0°C" 
+})
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/status')
+        const res = await fetch("http://127.0.0.1:8000/status")
         const data = await res.json()
-        setTelemetry(data.telemetria) // Actualizamos con lo que dice Python
-      } catch (e) {
-        console.log("Esperando al servidor Python...")
+        setTelemetry(data.telemetria)
+      } catch {
+        // backend no disponible — silencioso
       }
-    }, 1000) // Se actualiza cada 1 segundo
+    }, 1000)
     return () => clearInterval(timer)
   }, [])
-  // ----------------------------------------------
 
   const handleYamlChange = (next: string) => {
     setYaml(next)
     if (pristine) setPristine(false)
   }
 
-  const { config, mcu, activePinIds, activeBuses, effectiveClockMhz, effectiveFlashKb, effectiveSramKb, pinConflicts, busUtilization, components } =
-    useHardware(yaml)
+  const {
+    config, mcu, activePinIds, activeBuses,
+    effectiveClockMhz, effectiveFlashKb, effectiveSramKb,
+    pinConflicts, busUtilization, components,
+  } = useHardware(yaml)
 
-  // Snapshot sent to the Oracle Agent on every message.
   const oracleSnapshot = useMemo(
     () => ({
       mcuId: mcu.id,
@@ -81,25 +88,19 @@ export default function Page() {
       components: components.map((c) => ({ name: c.name, type: c.type, bus: c.bus, pins: c.pins })),
       activePinCount: activePinIds.size,
     }),
-    [
-      mcu,
-      effectiveSramKb,
-      effectiveFlashKb,
-      effectiveClockMhz,
-      activeBuses,
-      busUtilization,
-      pinConflicts,
-      components,
-      activePinIds,
-    ],
+    [mcu, effectiveSramKb, effectiveFlashKb, effectiveClockMhz,
+      activeBuses, busUtilization, pinConflicts, components, activePinIds],
   )
+
+  // ← NUEVO: el canvas central cambia según la sección activa
+  const isDebugMode = section === "debug"
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-[#050505]">
       <OmniSidebar active={section} onSelect={setSection} />
 
       <div className="flex flex-1 min-w-0 flex-col">
-        {/* Workspace header */}
+        {/* Header — sin cambios */}
         <header className="flex h-9 shrink-0 items-center justify-between border-b border-[#1A1A1A] bg-[#0A0A0A] px-4">
           <div className="flex items-center gap-3">
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white">
@@ -107,7 +108,9 @@ export default function Page() {
             </span>
             <span className="text-[#1A1A1A]">/</span>
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#666]">
-              {section === "hardware" ? "Hardware-as-Code" : section}
+              {section === "hardware" ? "Hardware-as-Code"
+                : section === "debug" ? "Debug · Live Simulator"   // ← NUEVO label
+                : section}
             </span>
             <span className="text-[#1A1A1A]">/</span>
             <span className="font-mono text-[10px] text-[#444]">stage 1</span>
@@ -128,71 +131,116 @@ export default function Page() {
           </div>
         </header>
 
-        {/* 3-pane workspace with bottom peripheral tree */}
-        <div className="flex flex-1 min-h-0 flex-col">
+        {/* ── MODO DEBUG ──────────────────────────────────────────── */}
+        {isDebugMode ? (
+          // Canvas completo para el panel de debug
+          // El DebugPanel ocupa todo el espacio disponible
           <div className="flex flex-1 min-h-0">
-            {/* Left — YAML editor */}
-            <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
-              <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
+            {/* Panel debug a la izquierda — 320px, scrollable */}
+            <div className="w-80 shrink-0 border-r border-[#1A1A1A] overflow-hidden">
+              <DebugPanel />
             </div>
 
-            {/* Center — MCU viewport */}
-            <div className="flex-1 min-w-0">
-              <McuViewport
-                mcu={mcu}
-                activePinIds={activePinIds}
-                activeBuses={activeBuses}
-                components={components}
-                pinConflicts={pinConflicts}
-              />
+            {/* Centro — placeholder para el canvas 3D (Fase 3) */}
+            <div className="flex-1 min-w-0 flex items-center justify-center">
+              <div className="text-center">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#333]">
+                  3D Canvas — Fase 3
+                </p>
+                <p className="font-mono text-[9px] text-[#222] mt-2">
+                  Three.js + Rapier physics
+                </p>
+                <p className="font-mono text-[9px] text-[#222] mt-1">
+                  El PCB se renderizará aquí con overlays de temperatura
+                </p>
+              </div>
             </div>
 
-            {/* Right — Oracle stats */}
-            <div className="w-[300px] shrink-0">
-              <OracleStats
-                mcu={mcu}
-                config={config}
-                effectiveClockMhz={effectiveClockMhz}
-                effectiveFlashKb={effectiveFlashKb}
-                effectiveSramKb={effectiveSramKb}
-                activeBuses={activeBuses}
-                activeBusPinCount={activePinIds.size}
-              />
+            {/* Panel derecho — inspector contextual */}
+            <div className="w-72 shrink-0 border-l border-[#1A1A1A] flex items-start p-3">
+              <div>
+                <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#333] mb-3">
+                  Inspector
+                </p>
+                <p className="font-mono text-[9px] text-[#222]">
+                  Seleccioná un componente en el canvas 3D para ver sus propiedades aquí.
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Bottom — Peripheral Tree (left) + Oracle Agent Chat (right) */}
-          <div className="flex h-64 shrink-0 border-t border-[#1A1A1A]">
-            <div className="flex-1 min-w-0 border-r border-[#1A1A1A]">
-              <PeripheralTree
-                busUtilization={busUtilization}
-                pinConflicts={pinConflicts}
-                components={components}
-              />
+        ) : (
+          // ── MODO NORMAL (hardware, simulation, etc.) — sin cambios ──
+          <div className="flex flex-1 min-h-0 flex-col">
+            <div className="flex flex-1 min-h-0">
+              {/* Left — YAML editor */}
+              <div className="flex w-[420px] shrink-0 flex-col border-r border-[#1A1A1A]">
+                <YamlEditor value={yaml} onChange={handleYamlChange} dirty={!pristine} />
+              </div>
+
+              {/* Center — MCU viewport */}
+              <div className="flex-1 min-w-0">
+                <McuViewport
+                  mcu={mcu}
+                  activePinIds={activePinIds}
+                  activeBuses={activeBuses}
+                  components={components}
+                  pinConflicts={pinConflicts}
+                />
+              </div>
+
+              {/* Right — Oracle stats */}
+              <div className="w-[300px] shrink-0">
+                <OracleStats
+                  mcu={mcu}
+                  config={config}
+                  effectiveClockMhz={effectiveClockMhz}
+                  effectiveFlashKb={effectiveFlashKb}
+                  effectiveSramKb={effectiveSramKb}
+                  activeBuses={activeBuses}
+                  activeBusPinCount={activePinIds.size}
+                />
+              </div>
             </div>
-            <div className="w-[440px] shrink-0">
-              <OracleChat snapshot={oracleSnapshot} />
+
+            {/* Bottom — Peripheral Tree + Oracle Chat */}
+            <div className="flex h-64 shrink-0 border-t border-[#1A1A1A]">
+              <div className="flex-1 min-w-0 border-r border-[#1A1A1A]">
+                <PeripheralTree
+                  busUtilization={busUtilization}
+                  pinConflicts={pinConflicts}
+                  components={components}
+                />
+              </div>
+              <div className="w-[440px] shrink-0">
+                <OracleChat snapshot={oracleSnapshot} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Status bar */}
-<footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
-  <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-    <span>OmniEdge Studio v0.1-beta</span>
-    <span className="text-[#222]">·</span>
-    <span className="text-[#39FF14] animate-pulse">LIVE</span> {/* Un toque de facha */}
-    <span className="text-[#222]">·</span>
-    <span className="text-[#00E5FF]">CPU: {telemetry.cpu_usage}</span> {/* DATO REAL */}
-  </div>
-  <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
-    <span>TEMP: <span className={parseInt(telemetry.temp) > 70 ? "text-red-500" : "text-[#39FF14]"}>{telemetry.temp}</span></span> {/* DATO REAL CON ALERTA */}
-    <span className="text-[#222]">·</span>
-    <span>{effectiveClockMhz} MHz</span>
-    <span className="text-[#222]">·</span>
-    <span className="text-[#39FF14]">Schema valid</span>
-  </div>
-</footer>
+        {/* Status bar — sin cambios */}
+        <footer className="flex h-6 shrink-0 items-center justify-between border-t border-[#1A1A1A] bg-[#0A0A0A] px-3">
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+            <span>OmniEdge Studio v0.1-beta</span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#39FF14] animate-pulse">LIVE</span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#00E5FF]">CPU: {telemetry?.cpu_usage || "0%"}</span>
+          </div>
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-[#444]">
+            <span>
+              TEMP:{" "}
+              <span className={parseInt(telemetry?.temp || "0") > 70 ? "text-red-500" : "text-[#39FF14]"}>
+  {telemetry?.temp || "0°C"}
+</span>
+            </span>
+            <span className="text-[#222]">·</span>
+            <span>{effectiveClockMhz} MHz</span>
+            <span className="text-[#222]">·</span>
+            <span className="text-[#39FF14]">Schema valid</span>
+          </div>
+        </footer>
       </div>
     </main>
   )
