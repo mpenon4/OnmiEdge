@@ -3,89 +3,125 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* OmniEdge — engineering instrument palette
- * 1. #0B0D10  background (ink)
- * 2. #11151A  panel surface
- * 3. #1C2228  border (1px hairline)
- * 4. #E5E7EA  foreground
- * 5. #00D4A8  signal cyan (live data / AI / telemetry primary)
- *    #8B5CF6  telemetry violet (charts, secondary metric)
- * Neutrals: #6B7480 muted, #2A323D elevated border
+/* OmniEdge — 4-zone engineering instrument
+ *
+ * Backgrounds:
+ *   --color-background-canvas    #0d1117  (Zone B — the protagonist)
+ *   --color-background-primary   #11151a  (Zone A, C, D — panels)
+ *   --color-background-secondary #161b21  (elevated rows, mcu summary)
+ *   --color-background-info      rgba(55, 138, 221, 0.10) (active row tint)
+ *
+ * Borders:
+ *   --color-border-tertiary  #1c2228 (default 0.5px hairlines)
+ *   --color-border-secondary #2a323d (emphasis 1px)
+ *
+ * Text:
+ *   --color-text-primary    #e5e7ea
+ *   --color-text-secondary  #6b7480 (muted, labels, timestamps)
+ *   --color-text-info       #378add  (tab activo, archivo activo, links)
+ *   --color-text-success    #84cc16  (LIVE, OK, ready, accuracy alta)
+ *   --color-text-warning    #ea7916  (SRAM alto, warnings)
+ *   --color-text-danger     #ef4444  (errors, fallas críticas)
+ *
+ * Oracle accent: #4ade80 — solo en el header del Oracle, firma del sistema.
  */
 :root {
-  --background: #0b0d10;
-  --foreground: #e5e7ea;
-  --card: #11151a;
-  --card-foreground: #e5e7ea;
-  --popover: #11151a;
-  --popover-foreground: #e5e7ea;
-  --primary: #00d4a8;
-  --primary-foreground: #0b0d10;
-  --secondary: #161b21;
-  --secondary-foreground: #e5e7ea;
-  --muted: #161b21;
-  --muted-foreground: #6b7480;
-  --accent: #1c2228;
-  --accent-foreground: #00d4a8;
-  --destructive: #ef4444;
-  --destructive-foreground: #0b0d10;
-  --border: #1c2228;
-  --input: #1c2228;
-  --ring: #00d4a8;
-  --chart-1: #00d4a8;
-  --chart-2: #8b5cf6;
-  --chart-3: #4a9eff;
-  --chart-4: #ff8c42;
-  --chart-5: #e5e7ea;
+  --color-background-canvas: #0d1117;
+  --color-background-primary: #11151a;
+  --color-background-secondary: #161b21;
+  --color-background-info: rgba(55, 138, 221, 0.10);
+  --color-background-warning: rgba(234, 121, 22, 0.10);
+  --color-background-danger: rgba(239, 68, 68, 0.10);
+  --color-background-success: rgba(132, 204, 22, 0.10);
+
+  --color-border-tertiary: #1c2228;
+  --color-border-secondary: #2a323d;
+  --color-border-primary: #3a4452;
+
+  --color-text-primary: #e5e7ea;
+  --color-text-secondary: #6b7480;
+  --color-text-tertiary: #4b5563;
+  --color-text-info: #378add;
+  --color-text-success: #84cc16;
+  --color-text-warning: #ea7916;
+  --color-text-danger: #ef4444;
+  --color-oracle-accent: #4ade80;
+
+  /* shadcn compatibility (reuse our tokens) */
+  --background: var(--color-background-canvas);
+  --foreground: var(--color-text-primary);
+  --card: var(--color-background-primary);
+  --card-foreground: var(--color-text-primary);
+  --popover: var(--color-background-primary);
+  --popover-foreground: var(--color-text-primary);
+  --primary: var(--color-text-success);
+  --primary-foreground: var(--color-background-canvas);
+  --secondary: var(--color-background-secondary);
+  --secondary-foreground: var(--color-text-primary);
+  --muted: var(--color-background-secondary);
+  --muted-foreground: var(--color-text-secondary);
+  --accent: var(--color-background-info);
+  --accent-foreground: var(--color-text-info);
+  --destructive: var(--color-text-danger);
+  --destructive-foreground: var(--color-background-canvas);
+  --border: var(--color-border-tertiary);
+  --input: var(--color-border-tertiary);
+  --ring: var(--color-text-info);
+  --chart-1: var(--color-text-success);
+  --chart-2: var(--color-text-info);
+  --chart-3: var(--color-text-warning);
+  --chart-4: var(--color-text-danger);
+  --chart-5: var(--color-text-secondary);
   --radius: 0px;
-  --sidebar: #11151a;
-  --sidebar-foreground: #e5e7ea;
-  --sidebar-primary: #00d4a8;
-  --sidebar-primary-foreground: #0b0d10;
-  --sidebar-accent: #161b21;
-  --sidebar-accent-foreground: #e5e7ea;
-  --sidebar-border: #1c2228;
-  --sidebar-ring: #00d4a8;
-  /* Engineering accents */
-  --signal: #00d4a8;
-  --telemetry: #8b5cf6;
-  --warning: #ff8c42;
-  --info: #4a9eff;
+  --sidebar: var(--color-background-primary);
+  --sidebar-foreground: var(--color-text-primary);
+  --sidebar-primary: var(--color-text-info);
+  --sidebar-primary-foreground: var(--color-background-canvas);
+  --sidebar-accent: var(--color-background-secondary);
+  --sidebar-accent-foreground: var(--color-text-primary);
+  --sidebar-border: var(--color-border-tertiary);
+  --sidebar-ring: var(--color-text-info);
 }
 
 .dark {
-  --background: #0b0d10;
-  --foreground: #e5e7ea;
-  --card: #11151a;
-  --card-foreground: #e5e7ea;
-  --popover: #11151a;
-  --popover-foreground: #e5e7ea;
-  --primary: #00d4a8;
-  --primary-foreground: #0b0d10;
-  --secondary: #161b21;
-  --secondary-foreground: #e5e7ea;
-  --muted: #161b21;
-  --muted-foreground: #6b7480;
-  --accent: #1c2228;
-  --accent-foreground: #00d4a8;
-  --destructive: #ef4444;
-  --destructive-foreground: #0b0d10;
-  --border: #1c2228;
-  --input: #1c2228;
-  --ring: #00d4a8;
-  --sidebar: #11151a;
-  --sidebar-foreground: #e5e7ea;
-  --sidebar-primary: #00d4a8;
-  --sidebar-primary-foreground: #0b0d10;
-  --sidebar-accent: #161b21;
-  --sidebar-accent-foreground: #e5e7ea;
-  --sidebar-border: #1c2228;
-  --sidebar-ring: #00d4a8;
+  /* Same tokens — dark is the only theme. */
+  --color-background-canvas: #0d1117;
+  --color-background-primary: #11151a;
+  --color-background-secondary: #161b21;
+  --color-background-info: rgba(55, 138, 221, 0.10);
+  --color-border-tertiary: #1c2228;
+  --color-border-secondary: #2a323d;
+  --color-text-primary: #e5e7ea;
+  --color-text-secondary: #6b7480;
+  --color-text-info: #378add;
+  --color-text-success: #84cc16;
+  --color-text-warning: #ea7916;
+  --color-text-danger: #ef4444;
 }
 
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Engineering tokens (usable as bg-canvas, text-info, border-tertiary, etc.) */
+  --color-canvas: var(--color-background-canvas);
+  --color-panel: var(--color-background-primary);
+  --color-elevated: var(--color-background-secondary);
+  --color-info-bg: var(--color-background-info);
+  --color-warning-bg: var(--color-background-warning);
+  --color-danger-bg: var(--color-background-danger);
+  --color-success-bg: var(--color-background-success);
+  --color-hairline: var(--color-border-tertiary);
+  --color-divider: var(--color-border-secondary);
+  --color-fg: var(--color-text-primary);
+  --color-fg-muted: var(--color-text-secondary);
+  --color-fg-info: var(--color-text-info);
+  --color-fg-success: var(--color-text-success);
+  --color-fg-warning: var(--color-text-warning);
+  --color-fg-danger: var(--color-text-danger);
+  --color-oracle: var(--color-oracle-accent);
+
+  /* shadcn passthrough */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -126,47 +162,49 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--color-border-tertiary);
   }
   html,
   body {
-    @apply bg-background text-foreground;
+    background: var(--color-background-canvas);
+    color: var(--color-text-primary);
     font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
-  /* Industrial precision: no bleed, no rounded surfaces */
   ::selection {
-    background: #00d4a8;
-    color: #050505;
+    background: var(--color-text-info);
+    color: var(--color-background-canvas);
   }
-  /* Hairline scrollbar (technical instrument feel) */
+  /* Hairline scrollbars */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0d10;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1c2228;
+    background: var(--color-border-tertiary);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2a323d;
+    background: var(--color-border-secondary);
+  }
+  /* Native range — single style across the app */
+  input[type='range'] {
+    accent-color: var(--color-text-info);
   }
 }
 
-/* Subtle grid backdrop for canvas surfaces */
+/* Subtle grid backdrop for canvas */
 .bg-tech-grid {
   background-image:
-    linear-gradient(to right, #1c222880 1px, transparent 1px),
-    linear-gradient(to bottom, #1c222880 1px, transparent 1px);
+    linear-gradient(to right, rgba(28, 34, 40, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28, 34, 40, 0.5) 1px, transparent 1px);
   background-size: 24px 24px;
 }
-
-/* Denser grid for schematic/3D mode */
 .bg-tech-grid-fine {
   background-image:
-    linear-gradient(to right, #1c2228 1px, transparent 1px),
-    linear-gradient(to bottom, #1c2228 1px, transparent 1px);
+    linear-gradient(to right, rgba(28, 34, 40, 1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28, 34, 40, 1) 1px, transparent 1px);
   background-size: 12px 12px;
 }
 

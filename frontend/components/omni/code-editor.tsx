@@ -1,5 +1,8 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+import { useState } from "react"
+
 const SOURCE = `// main.cpp — esp32-edge-vision
 // On-device inference loop · TinyML quantized model
 #include <Arduino.h>
@@ -48,35 +51,68 @@ function highlight(line: string) {
   while ((m = TOKEN_REGEX.exec(line))) {
     if (m.index > last) out.push(line.slice(last, m.index))
     const [match, comment, kw, builtin, str, num, fn] = m
-    if (comment) out.push(<span key={m.index} className="text-muted-foreground/70 italic">{match}</span>)
-    else if (kw) out.push(<span key={m.index} className="text-primary">{match}</span>)
-    else if (builtin) out.push(<span key={m.index} className="text-[#4a9eff]">{match}</span>)
-    else if (str) out.push(<span key={m.index} className="text-[#ff8c42]">{match}</span>)
-    else if (num) out.push(<span key={m.index} className="text-[#ff8c42]">{match}</span>)
-    else if (fn) out.push(<span key={m.index} className="text-foreground">{match}</span>)
+    if (comment) out.push(<span key={m.index} className="italic text-[var(--color-text-secondary)]">{match}</span>)
+    else if (kw) out.push(<span key={m.index} className="text-[var(--color-text-info)]">{match}</span>)
+    else if (builtin) out.push(<span key={m.index} className="text-[var(--color-text-info)]">{match}</span>)
+    else if (str) out.push(<span key={m.index} className="text-[var(--color-text-warning)]">{match}</span>)
+    else if (num) out.push(<span key={m.index} className="text-[var(--color-text-warning)]">{match}</span>)
+    else if (fn) out.push(<span key={m.index} className="text-[var(--color-text-success)]">{match}</span>)
     last = m.index + match.length
   }
   if (last < line.length) out.push(line.slice(last))
   return out
 }
 
+const TABS = [
+  { id: "main", name: "main.cpp", active: true },
+  { id: "sensors", name: "sensors.cpp", active: false },
+  { id: "model", name: "ml_model.h", active: false },
+]
+
 export function CodeEditor() {
+  const [activeId] = useState("main")
   const lines = SOURCE.split("\n")
+
   return (
-    <div className="grid h-full grid-rows-[1fr_auto] bg-background">
-      <div className="overflow-auto">
+    <div className="grid h-full min-h-0" style={{ gridTemplateRows: "28px 1fr 20px" }}>
+      {/* Tabs of open files (28px) */}
+      <div className="flex items-stretch border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)]">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={cn(
+              "relative flex items-center gap-2 border-r border-[var(--color-border-tertiary)] px-3 font-mono text-[10px] tracking-wider uppercase transition-colors",
+              t.id === activeId
+                ? "bg-[var(--color-background-canvas)] text-[var(--color-text-primary)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+            )}
+          >
+            {t.name}
+            {t.id === activeId && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-[2px] bg-[var(--color-text-info)]"
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Editor */}
+      <div className="overflow-auto bg-[var(--color-background-canvas)]">
         <div className="flex min-h-full">
           <div
             aria-hidden="true"
-            className="sticky left-0 shrink-0 border-r border-border bg-card py-3 pr-2 pl-3 text-right select-none"
+            className="sticky left-0 shrink-0 select-none border-r border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] py-3 pl-3 pr-2 text-right"
           >
             {lines.map((_, i) => (
-              <div key={i} className="font-mono text-[11px] leading-5 text-muted-foreground/60">
+              <div key={i} className="font-mono text-[11px] leading-5 text-[var(--color-text-secondary)]">
                 {String(i + 1).padStart(3, "0")}
               </div>
             ))}
           </div>
-          <pre className="flex-1 py-3 pr-3 pl-3 font-mono text-[12px] leading-5">
+          <pre className="flex-1 px-3 py-3 font-mono text-[12px] leading-5 text-[var(--color-text-primary)]">
             {lines.map((line, i) => (
               <div key={i} className="whitespace-pre">
                 {line ? highlight(line) : "\u00A0"}
@@ -85,19 +121,22 @@ export function CodeEditor() {
           </pre>
         </div>
       </div>
-      <footer className="flex h-6 shrink-0 items-center justify-between border-t border-border bg-card px-3 font-mono text-[10px] text-muted-foreground">
+
+      {/* Statusline (20px) */}
+      <footer className="flex items-center justify-between border-t border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] px-3 font-mono text-[10px] text-[var(--color-text-secondary)]">
         <div className="flex items-center gap-3">
           <span>C++17</span>
           <span>UTF-8</span>
           <span>LF</span>
-          <span>spaces: 2</span>
         </div>
         <div className="flex items-center gap-3">
           <span>
-            <span className="text-foreground">38</span> lines · <span className="text-foreground">1.2 KB</span>
+            Ln <span className="text-[var(--color-text-primary)]">14</span> · Col{" "}
+            <span className="text-[var(--color-text-primary)]">22</span>
           </span>
           <span>
-            Ln <span className="text-foreground">14</span> · Col <span className="text-foreground">22</span>
+            <span className="text-[var(--color-text-primary)]">38</span> lines ·{" "}
+            <span className="text-[var(--color-text-primary)]">1.2 KB</span>
           </span>
         </div>
       </footer>

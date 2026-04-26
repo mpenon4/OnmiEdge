@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Cpu, Hammer, Usb, Zap } from "lucide-react"
+import { Hammer, Usb } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const TARGETS = [
@@ -17,9 +17,7 @@ export function ViewDeploy() {
   const [target, setTarget] = useState(TARGETS[0].id)
   const [phase, setPhase] = useState<Phase>("idle")
   const [progress, setProgress] = useState(0)
-  const [log, setLog] = useState<string[]>([
-    "[deploy] ready · select target and build",
-  ])
+  const [log, setLog] = useState<string[]>(["[deploy] ready · select target and build"])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function append(line: string) {
@@ -69,118 +67,142 @@ export function ViewDeploy() {
     }, 100)
   }
 
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    },
+    [],
+  )
 
   const t = TARGETS.find((x) => x.id === target)!
 
   return (
-    <div className="grid h-full grid-cols-[360px_1fr] bg-background">
-      {/* Target panel */}
-      <aside className="overflow-y-auto border-r border-border bg-card">
-        <header className="flex h-9 items-center bg-secondary px-3 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-          Target MCU
-        </header>
-        <ul>
-          {TARGETS.map((t) => {
-            const active = target === t.id
-            return (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => setTarget(t.id)}
-                  className={cn(
-                    "flex w-full flex-col items-start gap-0.5 border-b border-border px-3 py-2.5 text-left transition-colors",
-                    active ? "bg-secondary" : "hover:bg-secondary/60",
-                  )}
-                >
-                  <span className="flex w-full items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-mono text-[12px]">
-                      <Cpu className={cn("size-3", active ? "text-primary" : "text-muted-foreground")} strokeWidth={1.5} />
-                      <span className={active ? "text-foreground" : "text-foreground/80"}>{t.label}</span>
+    <div className="grid h-full min-h-0" style={{ gridTemplateRows: "32px 1fr 28px" }}>
+      <div className="flex items-center gap-3 border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] px-3">
+        <span className="font-sans text-[10px] tracking-[0.18em] text-[var(--color-text-secondary)] uppercase">
+          Deploy · Build & Flash
+        </span>
+        <span className="font-mono text-[10px] text-[var(--color-text-primary)]">{t.label}</span>
+        <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">{t.arch}</span>
+      </div>
+
+      <div className="grid min-h-0 bg-[var(--color-background-canvas)]" style={{ gridTemplateColumns: "320px 1fr" }}>
+        <aside className="overflow-y-auto border-r border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)]">
+          <header className="flex h-7 items-center bg-[var(--color-background-secondary)] px-3 font-sans text-[10px] tracking-[0.18em] text-[var(--color-text-secondary)] uppercase">
+            Target MCU
+          </header>
+          <ul>
+            {TARGETS.map((tg) => {
+              const active = target === tg.id
+              return (
+                <li key={tg.id}>
+                  <button
+                    type="button"
+                    onClick={() => setTarget(tg.id)}
+                    className={cn(
+                      "flex w-full flex-col items-start gap-0.5 border-b border-[var(--color-border-tertiary)] px-3 py-2 text-left transition-colors",
+                      active
+                        ? "bg-[var(--color-background-info)]"
+                        : "hover:bg-[var(--color-background-secondary)]",
+                    )}
+                  >
+                    <span className="flex w-full items-baseline justify-between">
+                      <span
+                        className={cn(
+                          "font-mono text-[12px]",
+                          active ? "text-[var(--color-text-info)]" : "text-[var(--color-text-primary)]",
+                        )}
+                      >
+                        {tg.label}
+                      </span>
+                      {active && (
+                        <span className="font-mono text-[9px] tracking-wider text-[var(--color-text-info)]">
+                          SELECTED
+                        </span>
+                      )}
                     </span>
-                    {active && <span className="font-mono text-[9px] tracking-wider text-primary">SELECTED</span>}
-                  </span>
-                  <span className="ml-4 font-mono text-[10px] text-muted-foreground">{t.arch}</span>
-                  <span className="ml-4 font-mono text-[10px] text-muted-foreground">
-                    flash {t.flash} · ram {t.ram}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </aside>
+                    <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">{tg.arch}</span>
+                    <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
+                      flash {tg.flash} · ram {tg.ram}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </aside>
 
-      {/* Build / Flash workflow */}
-      <div className="grid min-h-0 grid-rows-[auto_auto_1fr]">
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-3">
-          <ActionButton
-            label="Build"
-            description={`compile for ${t.label}`}
-            icon={<Hammer className="size-3.5" strokeWidth={1.5} />}
-            onClick={startBuild}
-            running={phase === "building"}
-            disabled={phase === "flashing"}
-          />
-          <ActionButton
-            label="Flash"
-            description="upload firmware over USB"
-            icon={<Usb className="size-3.5" strokeWidth={1.5} />}
-            onClick={startFlash}
-            running={phase === "flashing"}
-            disabled={phase !== "done"}
-            primary
-          />
-          <div className="ml-auto flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Zap className="size-3 text-primary" strokeWidth={1.5} />
-              <span>{phaseLabel(phase)}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="border-b border-border bg-card px-3 py-2.5">
-          <div className="flex items-baseline justify-between font-mono text-[10px]">
-            <span className="tracking-[0.18em] text-muted-foreground uppercase">
-              {phase === "building" ? "Compiling" : phase === "flashing" ? "Flashing" : "Progress"}
-            </span>
-            <span className="text-foreground tabular-nums">{Math.min(100, Math.round(progress))}%</span>
-          </div>
-          <div className="mt-1.5 h-1 w-full bg-background" role="progressbar" aria-valuenow={progress} aria-valuemax={100}>
-            <div
-              className={cn(
-                "h-full transition-all duration-150",
-                phase === "flashing" ? "bg-[var(--telemetry)]" : "bg-primary",
-              )}
-              style={{ width: `${Math.min(100, progress)}%` }}
+        <div className="grid min-h-0" style={{ gridTemplateRows: "auto auto 1fr" }}>
+          <div className="flex items-center gap-2 border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] px-3 py-2.5">
+            <ActionButton
+              label="Build"
+              icon={<Hammer className="size-3" strokeWidth={1.5} />}
+              onClick={startBuild}
+              running={phase === "building"}
+              disabled={phase === "flashing"}
             />
+            <ActionButton
+              label="Flash"
+              icon={<Usb className="size-3" strokeWidth={1.5} />}
+              onClick={startFlash}
+              running={phase === "flashing"}
+              disabled={phase !== "done"}
+              primary
+            />
+            <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+              {phaseLabel(phase)}
+            </span>
+          </div>
+
+          <div className="border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] px-3 py-2">
+            <div className="flex items-baseline justify-between font-mono text-[10px]">
+              <span className="tracking-[0.18em] text-[var(--color-text-secondary)] uppercase">
+                {phase === "building" ? "Compiling" : phase === "flashing" ? "Flashing" : "Progress"}
+              </span>
+              <span className="text-[var(--color-text-primary)] tabular-nums">{Math.round(progress)}%</span>
+            </div>
+            <div
+              className="mt-1.5 h-1 w-full bg-[var(--color-background-canvas)]"
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemax={100}
+            >
+              <div
+                className="h-full transition-all duration-150"
+                style={{
+                  width: `${Math.min(100, progress)}%`,
+                  backgroundColor:
+                    phase === "flashing" ? "var(--color-text-info)" : "var(--color-text-success)",
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="min-h-0 overflow-auto px-3 py-2 font-mono text-[11px] leading-5">
+            {log.map((line, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "whitespace-pre-wrap",
+                  line.includes(" OK ") || line.endsWith(" running")
+                    ? "text-[var(--color-text-success)]"
+                    : line.startsWith("[flash]")
+                      ? "text-[var(--color-text-info)]"
+                      : line.startsWith("[device]")
+                        ? "text-[var(--color-text-primary)]"
+                        : "text-[var(--color-text-secondary)]",
+                )}
+              >
+                {line}
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Log */}
-        <div className="min-h-0 overflow-auto px-3 py-2 font-mono text-[11px] leading-5">
-          {log.map((line, i) => (
-            <div
-              key={i}
-              className={cn(
-                "whitespace-pre-wrap",
-                line.includes(" OK ") || line.endsWith(" running")
-                  ? "text-primary"
-                  : line.startsWith("[flash]")
-                    ? "text-[var(--telemetry)]"
-                    : line.startsWith("[device]")
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-              )}
-            >
-              {line}
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center justify-between border-t border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] px-3 font-mono text-[10px] text-[var(--color-text-secondary)]">
+        <span>PORT · /dev/cu.usbserial-A4C1</span>
+        <span>BAUD · 921600</span>
       </div>
     </div>
   )
@@ -188,7 +210,6 @@ export function ViewDeploy() {
 
 function ActionButton({
   label,
-  description,
   icon,
   onClick,
   running,
@@ -196,7 +217,6 @@ function ActionButton({
   primary,
 }: {
   label: string
-  description: string
   icon: React.ReactNode
   onClick: () => void
   running?: boolean
@@ -209,20 +229,15 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled || running}
       className={cn(
-        "group flex items-center gap-2 border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+        "flex items-center gap-2 border px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
         primary
-          ? "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-          : "border-border text-foreground hover:bg-secondary",
+          ? "border-[var(--color-text-info)] text-[var(--color-text-info)] hover:bg-[var(--color-text-info)] hover:text-[var(--color-background-canvas)]"
+          : "border-[var(--color-border-tertiary)] text-[var(--color-text-primary)] hover:bg-[var(--color-background-secondary)]",
         disabled && "cursor-not-allowed opacity-40 hover:bg-transparent",
       )}
     >
       <span className={running ? "signal-live" : undefined}>{icon}</span>
-      <span className="flex flex-col items-start gap-0.5">
-        <span>{label}</span>
-        <span className="text-[9px] tracking-normal normal-case text-muted-foreground group-hover:text-current/70">
-          {description}
-        </span>
-      </span>
+      <span>{label}</span>
     </button>
   )
 }
