@@ -11,9 +11,11 @@ export async function POST(req: Request) {
       model: groq('llama-3.3-70b-versatile'),
       // En lugar de convertToCoreMessages, pasamos el array directo
       // Next.js y el AI SDK suelen entenderlo si el formato es estándar
-      messages: messages.map((m: any) => ({
-        role: m.role,
-        content: m.content,
+      // En tu route.ts, línea 13:
+messages: messages.map((m: any) => ({
+  role: m.role,
+  content: m.content,
+})),
       })),
       system: `Eres el Oracle de OmniEdge. 
       Responde como un ingeniero senior de la UTN Paraná. 
