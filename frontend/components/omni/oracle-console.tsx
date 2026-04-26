@@ -117,7 +117,7 @@ export function OracleConsole() {
   return (
     <section
       aria-label="Oracle AI console"
-      className="grid h-full min-h-0 border-t border-[var(--color-border-secondary)] bg-[var(--color-background-primary)]"
+      className="grid h-full min-h-0 bg-[var(--color-background-primary)]"
       style={{ gridTemplateRows: "32px 1fr 48px" }}
       onClick={() => inputRef.current?.focus()}
     >

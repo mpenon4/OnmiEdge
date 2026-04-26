@@ -97,7 +97,7 @@ export function LeftPanel() {
   return (
     <aside
       aria-label="Project explorer"
-      className="flex h-full min-h-0 flex-col border-r border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)]"
+      className="flex h-full min-h-0 flex-col bg-[var(--color-background-primary)]"
     >
       {/* Explorer (flex 1) */}
       <div className="flex min-h-0 flex-1 flex-col">

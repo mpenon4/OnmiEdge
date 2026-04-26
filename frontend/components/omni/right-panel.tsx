@@ -17,7 +17,7 @@ export function RightPanel() {
   return (
     <aside
       aria-label="Inspector"
-      className="flex h-full min-h-0 flex-col border-l border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)]"
+      className="flex h-full min-h-0 flex-col bg-[var(--color-background-primary)]"
     >
       <header className="flex h-7 shrink-0 items-center px-3">
         <span className="font-sans text-[10px] tracking-[0.18em] text-[var(--color-text-secondary)] uppercase">

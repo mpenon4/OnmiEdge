@@ -1,9 +1,15 @@
 "use client"
 
-import { ChevronDown, MoreHorizontal } from "lucide-react"
+import { ChevronDown, MoreHorizontal, PanelBottom, PanelLeft, PanelRight } from "lucide-react"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { type AppMode, useOmniStore } from "@/lib/store"
+
+type TopBarProps = {
+  onToggleSidebar?: () => void
+  onToggleInspector?: () => void
+  onToggleOracle?: () => void
+}
 
 const MODES: { id: AppMode; label: string }[] = [
   { id: "ide", label: "IDE" },
@@ -17,7 +23,7 @@ const MODES: { id: AppMode; label: string }[] = [
 
 const PROJECTS = ["esp32-edge-vision", "stm32-thermal-control", "rp2040-mesh-node", "nrf52-wearable-imu"]
 
-export function TopBar() {
+export function TopBar({ onToggleSidebar, onToggleInspector, onToggleOracle }: TopBarProps = {}) {
   const mode = useOmniStore((s) => s.mode)
   const setMode = useOmniStore((s) => s.setMode)
   const project = useOmniStore((s) => s.project)
@@ -161,6 +167,37 @@ export function TopBar() {
         </div>
 
         <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">v0/mpenon4-e83b86d8</span>
+
+        {/* Layout toggles — collapse/expand panels */}
+        <div className="flex items-center border-l border-[var(--color-border-tertiary)] pl-3">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelLeft className="size-3.5" strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleOracle}
+            aria-label="Toggle Oracle console"
+            title="Toggle Oracle console"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelBottom className="size-3.5" strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleInspector}
+            aria-label="Toggle inspector"
+            title="Toggle inspector"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelRight className="size-3.5" strokeWidth={1.5} />
+          </button>
+        </div>
 
         <button
           type="button"
