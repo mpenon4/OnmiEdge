@@ -1,33 +1,29 @@
-import { Hono } from 'hono'
-import { handle } from 'hono/vercel'
-import { google } from '@ai-sdk/google'
-import { generateText } from 'ai'
+import { groq } from '@ai-sdk/groq';
+import { streamText } from 'ai';
 
-const app = new Hono().basePath('/api')
+export const dynamic = 'force-dynamic';
 
-// Endpoint de salud
-app.get('/health', (c) => c.json({ status: 'Operacional', platform: 'OmniEdge Next' }))
-
-// Endpoint del Oracle
-app.post('/chat', async (c) => {
+export async function POST(req: Request) {
   try {
-    const { query, snapshot, mcu_id } = await c.req.json()
+    const { messages } = await req.json();
 
-    const { text } = await generateText({
-      model: google('gemini-1.5-flash'),
-      system: `Eres el OmniEdge Oracle, un experto en ingeniería electrónica y sistemas embebidos. 
-               Estás analizando un sistema basado en el MCU: ${mcu_id || 'STM32'}. 
-               Responde siempre de forma técnica, precisa y concisa.`,
-      prompt: query || 'Hola Oracle',
-    })
+    const result = await streamText({
+      model: groq('llama-3.3-70b-versatile'),
+      messages: messages.map((m: any) => ({
+        role: m.role,
+        content: m.content,
+      })), 
+      system: `Eres el Oracle de OmniEdge. 
+      Responde como un ingeniero senior de la UTN Paraná. 
+      Experto en STM32, Proteus y TinyML. 
+      Sé ultra breve y técnico.`,
+    });
 
-    return c.json({ message: text })
-  } catch (error) {
-    console.error('❌ Error Oracle:', error)
-    return c.json({ message: "Error interno del Oracle." }, 500)
+    return result.toTextStreamResponse();
+  } catch (error: any) {
+    console.error("🔥 Error en el Oracle:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+    });
   }
-})
-
-// Magia pura: Next.js le pasa el control a Hono
-export const GET = handle(app)
-export const POST = handle(app)
+}
