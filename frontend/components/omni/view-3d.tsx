@@ -1,180 +1,303 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import { Eye, Layers, Maximize2, RotateCcw, Thermometer } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useOmniStore } from "@/lib/store"
 
-type Part = {
+type Hotspot = {
   id: string
+  /** Position in % over the image */
+  x: number
+  y: number
+  /** Heat radius scale */
+  r: number
+  /** Heat intensity 0..1 — drives alpha */
+  intensity: number
   ref: string
-  part: string
+  label: string
   pkg: string
   pins: number
-  poly: string
-  fill: string
-  stroke: string
+  /** Side the label flag points to */
+  side: "left" | "right"
 }
 
-const PARTS: Part[] = [
-  {
-    id: "u1",
-    ref: "U1",
-    part: "ESP32-S3",
-    pkg: "QFN-56",
-    pins: 56,
-    poly: "380,212 460,212 478,242 398,242",
-    fill: "#11151a",
-    stroke: "#e5e7ea",
-  },
-  {
-    id: "u2",
-    ref: "U2",
-    part: "BME280",
-    pkg: "LGA-8",
-    pins: 8,
-    poly: "320,224 348,224 358,238 330,238",
-    fill: "#11151a",
-    stroke: "#4a9eff",
-  },
-  {
-    id: "u3",
-    ref: "U3",
-    part: "OV2640",
-    pkg: "CMOS-DVP",
-    pins: 24,
-    poly: "498,224 526,224 538,238 510,238",
-    fill: "#11151a",
-    stroke: "#4a9eff",
-  },
-  {
-    id: "y1",
-    ref: "Y1",
-    part: "40MHz XO",
-    pkg: "5032-4",
-    pins: 4,
-    poly: "350,242 366,242 372,250 356,250",
-    fill: "#11151a",
-    stroke: "#ff8c42",
-  },
-  {
-    id: "j1",
-    ref: "J1",
-    part: "USB-C",
-    pkg: "TYPE-C-24",
-    pins: 24,
-    poly: "274,224 304,224 314,238 284,238",
-    fill: "#11151a",
-    stroke: "#8b5cf6",
-  },
+const COMPONENTS: Hotspot[] = [
+  { id: "u1", ref: "U1", label: "STM32H7", pkg: "LQFP-100", pins: 100, x: 50, y: 47, r: 220, intensity: 0.95, side: "right" },
+  { id: "u2", ref: "U2", label: "LSM6DSOX", pkg: "LGA-14", pins: 14, x: 26, y: 36, r: 90, intensity: 0.45, side: "left" },
+  { id: "u3", ref: "U3", label: "BMP280", pkg: "LGA-8", pins: 8, x: 74, y: 33, r: 70, intensity: 0.32, side: "right" },
+  { id: "u4", ref: "U4", label: "ICM-20948", pkg: "QFN-24", pins: 24, x: 70, y: 65, r: 100, intensity: 0.55, side: "right" },
+  { id: "u5", ref: "U5", label: "TPS7A02", pkg: "SOT-23-5", pins: 5, x: 23, y: 70, r: 80, intensity: 0.72, side: "left" },
 ]
 
-export function View3D() {
-  const [hovered, setHovered] = useState<Part | null>(null)
-  const setSelection = useOmniStore((s) => s.setSelection)
+const OVERLAYS = [
+  { id: "thermal", label: "Temperatura", icon: <Thermometer className="size-3" strokeWidth={1.5} /> },
+  { id: "labels", label: "Etiquetas", icon: <Layers className="size-3" strokeWidth={1.5} /> },
+  { id: "vibration", label: "Vibración", icon: <RotateCcw className="size-3" strokeWidth={1.5} /> },
+] as const
 
-  function selectPart(p: Part) {
-    setSelection({ kind: "component", ref: p.ref, part: p.part, package: p.pkg, pins: p.pins })
-  }
+type OverlayId = (typeof OVERLAYS)[number]["id"]
+
+export function View3D() {
+  const setSelection = useOmniStore((s) => s.setSelection)
+  const selection = useOmniStore((s) => s.selection)
+  const [active, setActive] = useState<Record<OverlayId, boolean>>({
+    thermal: true,
+    labels: true,
+    vibration: false,
+  })
+  const [tempMax, setTempMax] = useState(68.7)
+  const [view, setView] = useState<"perspective" | "top" | "side">("perspective")
+
+  // Live drift on max temperature so the heatmap feels alive
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTempMax((t) => {
+        const next = t + (Math.random() - 0.5) * 0.4
+        return Math.max(64, Math.min(72, next))
+      })
+    }, 800)
+    return () => clearInterval(id)
+  }, [])
+
+  const selectedRef = selection?.kind === "component" ? selection.ref : null
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-background bg-tech-grid">
-      <div className="absolute top-3 left-3 font-mono text-[10px] tracking-wider text-muted-foreground">
-        <div>VIEWPORT · 3D · PERSPECTIVE</div>
-        <div className="mt-0.5">main_board.brd · {PARTS.length} parts · 24 nets</div>
+    <div className="relative h-full w-full overflow-hidden bg-background">
+      {/* HUD top-left: viewport info */}
+      <div className="pointer-events-none absolute top-3 left-3 z-20 font-mono text-[10px] tracking-wider text-muted-foreground">
+        <div>VIEWPORT · {view.toUpperCase()}</div>
+        <div className="mt-0.5">SOLVER · RAPIER · 60 Hz</div>
+        <div className="mt-0.5">BOARD · smart-sensor-v2.brd</div>
       </div>
 
-      <svg viewBox="0 0 800 500" className="absolute inset-0 h-full w-full" aria-label="3D PCB viewport">
-        <defs>
-          <linearGradient id="boardGloss" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#00d4a8" stopOpacity="0.10" />
-            <stop offset="1" stopColor="#00d4a8" stopOpacity="0.04" />
-          </linearGradient>
-          <pattern id="floorGrid" width="32" height="32" patternUnits="userSpaceOnUse">
-            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1c2228" strokeWidth="0.5" />
-          </pattern>
-        </defs>
+      {/* HUD top-right: view + overlay controls */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2">
+        <div className="flex items-center gap-1 border border-border bg-card/90 p-0.5 backdrop-blur">
+          {(["perspective", "top", "side"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={cn(
+                "px-2 py-1 font-mono text-[9px] tracking-wider uppercase transition-colors",
+                view === v ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
 
-        {/* Floor plane */}
-        <polygon points="80,420 720,420 880,500 -80,500" fill="url(#floorGrid)" stroke="#1c2228" strokeWidth="1" />
+        <div className="flex flex-col items-stretch border border-border bg-card/90 backdrop-blur min-w-[160px]">
+          <span className="border-b border-border px-2 py-1 font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
+            Overlays
+          </span>
+          {OVERLAYS.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setActive((a) => ({ ...a, [o.id]: !a[o.id] }))}
+              aria-pressed={active[o.id]}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition-colors",
+                active[o.id] ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span aria-hidden="true">{o.icon}</span>
+              <span>{o.label}</span>
+              <span className="ml-auto text-[9px]">{active[o.id] ? "ON" : "OFF"}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* PCB body (isometric) */}
-        <g stroke="#00d4a8" strokeWidth="1" fill="none">
-          <polygon points="260,200 560,200 600,260 300,260" fill="url(#boardGloss)" />
-          <polygon points="560,200 560,220 600,280 600,260" fill="#00d4a826" />
-          <polygon points="260,200 260,220 300,280 300,260" fill="#00d4a81a" />
-          <polygon points="260,220 560,220 600,280 300,280" fill="none" />
-        </g>
+      {/* Scene */}
+      <div className="absolute inset-0 flex items-center justify-center bg-tech-grid-fine">
+        <div className="relative h-full w-full">
+          {/* Photoreal PCB render */}
+          <Image
+            src="/renders/pcb-board.jpg"
+            alt="Render fotorealista de la PCB smart-sensor-v2"
+            fill
+            priority
+            className={cn(
+              "object-contain transition-all duration-500",
+              view === "top" && "scale-110",
+              view === "side" && "scale-95 saturate-50",
+            )}
+            sizes="(min-width: 1024px) 60vw, 100vw"
+          />
 
-        {/* Silkscreen */}
-        <text x="270" y="216" fontFamily="monospace" fontSize="7" fill="#6b7480" letterSpacing="1.2">
-          OMNIEDGE · MAIN_BOARD · REV C
-        </text>
+          {/* Thermal heatmap overlay */}
+          {active.thermal && (
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <defs>
+                {COMPONENTS.map((c) => (
+                  <radialGradient key={c.id} id={`heat-${c.id}`} cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={c.intensity * 0.7} />
+                    <stop offset="35%" stopColor="#ff8c42" stopOpacity={c.intensity * 0.5} />
+                    <stop offset="65%" stopColor="#facc15" stopOpacity={c.intensity * 0.3} />
+                    <stop offset="100%" stopColor="#00d4a8" stopOpacity="0" />
+                  </radialGradient>
+                ))}
+              </defs>
+              {COMPONENTS.map((c) => (
+                <ellipse
+                  key={c.id}
+                  cx={c.x}
+                  cy={c.y}
+                  rx={c.r * 0.06}
+                  ry={c.r * 0.04}
+                  fill={`url(#heat-${c.id})`}
+                  style={{ mixBlendMode: "screen" }}
+                />
+              ))}
+            </svg>
+          )}
 
-        {/* Components */}
-        {PARTS.map((p) => {
-          const isHover = hovered?.id === p.id
-          return (
-            <g key={p.id}>
-              <polygon
-                points={p.poly}
-                fill={p.fill}
-                stroke={isHover ? "#00d4a8" : p.stroke}
-                strokeWidth={isHover ? "1.5" : "1"}
-                onMouseEnter={() => setHovered(p)}
-                onMouseLeave={() => setHovered((h) => (h?.id === p.id ? null : h))}
-                onClick={() => selectPart(p)}
-                className="cursor-pointer"
-              />
-            </g>
-          )
-        })}
+          {/* Vibration overlay */}
+          {active.vibration && (
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-0 animate-pulse border border-primary/20" />
+              <div className="absolute top-1/2 left-1/2 size-32 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/40 animate-ping" />
+            </div>
+          )}
 
-        {/* Reference designator labels */}
-        <text x="404" y="232" fontFamily="monospace" fontSize="9" fill="#6b7480">
-          ESP32-S3
-        </text>
+          {/* Component labels */}
+          {active.labels && (
+            <div className="pointer-events-none absolute inset-0">
+              {COMPONENTS.map((c) => {
+                const isSelected = selectedRef === c.ref
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() =>
+                      setSelection({
+                        kind: "component",
+                        ref: c.ref,
+                        part: c.label,
+                        package: c.pkg,
+                        pins: c.pins,
+                      })
+                    }
+                    style={{ left: `${c.x}%`, top: `${c.y}%` }}
+                    className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 group"
+                    aria-label={`Seleccionar ${c.ref} ${c.label}`}
+                  >
+                    {/* Pin dot */}
+                    <span
+                      className={cn(
+                        "block size-2 rounded-full border transition-all",
+                        isSelected
+                          ? "border-primary bg-primary scale-150 shadow-[0_0_12px_rgba(0,212,168,0.8)]"
+                          : "border-primary/70 bg-background/80 group-hover:border-primary group-hover:bg-primary/40",
+                      )}
+                    />
 
-        {/* Connection vector */}
-        <g stroke="#8b5cf6" strokeWidth="1" strokeDasharray="2 3" opacity="0.7">
-          <path d="M 420 220 Q 500 120 620 160" fill="none" />
-          <circle cx="620" cy="160" r="3" fill="#8b5cf6" stroke="none" />
-        </g>
-        <text x="624" y="156" fontFamily="monospace" fontSize="8" fill="#8b5cf6">
-          rx vector
-        </text>
+                    {/* Lead line */}
+                    <span
+                      className={cn(
+                        "absolute top-1/2 h-px bg-primary/50 transition-opacity",
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-70",
+                        c.side === "left" ? "right-2 w-6" : "left-2 w-6",
+                      )}
+                      style={{ transform: "translateY(-50%)" }}
+                    />
 
-        {/* Axes */}
-        <g transform="translate(60,440)" fontFamily="monospace" fontSize="9">
-          <line x1="0" y1="0" x2="40" y2="0" stroke="#ef4444" strokeWidth="1" />
-          <text x="44" y="3" fill="#ef4444">x</text>
-          <line x1="0" y1="0" x2="0" y2="-40" stroke="#00d4a8" strokeWidth="1" />
-          <text x="4" y="-44" fill="#00d4a8">y</text>
-          <line x1="0" y1="0" x2="-28" y2="20" stroke="#4a9eff" strokeWidth="1" />
-          <text x="-40" y="26" fill="#4a9eff">z</text>
-        </g>
-      </svg>
+                    {/* Flag */}
+                    <span
+                      className={cn(
+                        "absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 border bg-card/95 px-1.5 py-0.5 font-mono text-[9px] backdrop-blur transition-all whitespace-nowrap",
+                        isSelected
+                          ? "border-primary text-primary"
+                          : "border-border text-foreground opacity-90 group-hover:border-primary/60",
+                        c.side === "left" ? "right-9" : "left-9",
+                      )}
+                    >
+                      <span className="text-primary">{c.ref}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span>{c.label}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
-      {/* Hover card */}
-      {hovered && (
-        <div className="absolute left-3 bottom-3 border border-border bg-card px-3 py-2 font-mono text-[10px]">
-          <div className="text-primary">
-            {hovered.ref} · {hovered.part}
-          </div>
-          <div className="mt-0.5 text-muted-foreground">
-            pkg {hovered.pkg} · pins {hovered.pins} · click to inspect
+      {/* Temperature legend (right) */}
+      {active.thermal && (
+        <div className="pointer-events-none absolute top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
+          <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
+            T (°C)
+          </span>
+          <div className="flex items-stretch gap-2">
+            <div
+              className="h-40 w-2 border border-border"
+              style={{
+                background:
+                  "linear-gradient(to bottom, #ef4444 0%, #ff8c42 30%, #facc15 55%, #00d4a8 100%)",
+              }}
+              aria-hidden="true"
+            />
+            <div className="flex h-40 flex-col justify-between font-mono text-[9px] text-muted-foreground tabular-nums">
+              <span className="text-foreground">85</span>
+              <span>62</span>
+              <span>40</span>
+              <span>22</span>
+            </div>
           </div>
         </div>
       )}
 
-      {/* HUD */}
-      <div className="absolute right-3 bottom-3 grid grid-cols-2 gap-x-4 gap-y-0.5 border border-border bg-card px-3 py-2 font-mono text-[10px]">
-        <span className="text-muted-foreground">VIEW</span>
-        <span className="text-right text-foreground">PERSPECTIVE</span>
-        <span className="text-muted-foreground">LAYER</span>
-        <span className="text-right text-foreground">TOP_COPPER</span>
-        <span className="text-muted-foreground">PARTS</span>
-        <span className="text-right text-foreground">{PARTS.length}</span>
-        <span className="text-muted-foreground">DRC</span>
-        <span className="text-right text-primary">PASS</span>
+      {/* Bottom-left: live metrics */}
+      <div className="absolute bottom-3 left-3 z-20 grid grid-cols-2 gap-x-4 gap-y-0.5 border border-border bg-card/90 px-3 py-2 font-mono text-[10px] backdrop-blur">
+        <span className="col-span-2 mb-0.5 tracking-[0.18em] text-muted-foreground uppercase">
+          Métricas en tiempo real
+        </span>
+        <span className="text-muted-foreground">Temperatura máx</span>
+        <span className="text-right text-foreground tabular-nums">{tempMax.toFixed(1)} °C</span>
+        <span className="text-muted-foreground">CPU Load</span>
+        <span className="text-right text-foreground tabular-nums">32.1%</span>
+        <span className="text-muted-foreground">Consumo total</span>
+        <span className="text-right text-primary tabular-nums">112.4 mA</span>
+        <span className="text-muted-foreground">FPS</span>
+        <span className="text-right text-foreground tabular-nums">60</span>
+      </div>
+
+      {/* Bottom-right: viewport tools */}
+      <div className="absolute right-3 bottom-3 z-20 flex items-center gap-1 border border-border bg-card/90 p-0.5 backdrop-blur">
+        <button
+          type="button"
+          className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+          aria-label="Reset view"
+          onClick={() => setView("perspective")}
+        >
+          <RotateCcw className="size-3.5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+          aria-label="Toggle visibility"
+        >
+          <Eye className="size-3.5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+          aria-label="Fullscreen"
+        >
+          <Maximize2 className="size-3.5" strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   )
