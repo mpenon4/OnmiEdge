@@ -3,77 +3,83 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* OmniEdge — Ink Black industrial palette
- * 1. #050505  ink black background
- * 2. #0a0a0a  panel surface
- * 3. #252525  border (1px hairline)
- * 4. #e5e5e5  foreground text
- * 5. #00d4a8  signal accent (live data, telemetry)
- * Neutrals: #707070 (muted text)
+/* OmniEdge — engineering instrument palette
+ * 1. #0B0D10  background (ink)
+ * 2. #11151A  panel surface
+ * 3. #1C2228  border (1px hairline)
+ * 4. #E5E7EA  foreground
+ * 5. #00D4A8  signal cyan (live data / AI / telemetry primary)
+ *    #8B5CF6  telemetry violet (charts, secondary metric)
+ * Neutrals: #6B7480 muted, #2A323D elevated border
  */
 :root {
-  --background: #050505;
-  --foreground: #e5e5e5;
-  --card: #0a0a0a;
-  --card-foreground: #e5e5e5;
-  --popover: #0a0a0a;
-  --popover-foreground: #e5e5e5;
+  --background: #0b0d10;
+  --foreground: #e5e7ea;
+  --card: #11151a;
+  --card-foreground: #e5e7ea;
+  --popover: #11151a;
+  --popover-foreground: #e5e7ea;
   --primary: #00d4a8;
-  --primary-foreground: #050505;
-  --secondary: #141414;
-  --secondary-foreground: #e5e5e5;
-  --muted: #141414;
-  --muted-foreground: #707070;
-  --accent: #141414;
+  --primary-foreground: #0b0d10;
+  --secondary: #161b21;
+  --secondary-foreground: #e5e7ea;
+  --muted: #161b21;
+  --muted-foreground: #6b7480;
+  --accent: #1c2228;
   --accent-foreground: #00d4a8;
   --destructive: #ef4444;
-  --destructive-foreground: #050505;
-  --border: #252525;
-  --input: #252525;
+  --destructive-foreground: #0b0d10;
+  --border: #1c2228;
+  --input: #1c2228;
   --ring: #00d4a8;
   --chart-1: #00d4a8;
-  --chart-2: #4a9eff;
-  --chart-3: #ff8c42;
-  --chart-4: #707070;
-  --chart-5: #e5e5e5;
+  --chart-2: #8b5cf6;
+  --chart-3: #4a9eff;
+  --chart-4: #ff8c42;
+  --chart-5: #e5e7ea;
   --radius: 0px;
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #e5e5e5;
+  --sidebar: #11151a;
+  --sidebar-foreground: #e5e7ea;
   --sidebar-primary: #00d4a8;
-  --sidebar-primary-foreground: #050505;
-  --sidebar-accent: #141414;
-  --sidebar-accent-foreground: #e5e5e5;
-  --sidebar-border: #252525;
+  --sidebar-primary-foreground: #0b0d10;
+  --sidebar-accent: #161b21;
+  --sidebar-accent-foreground: #e5e7ea;
+  --sidebar-border: #1c2228;
   --sidebar-ring: #00d4a8;
+  /* Engineering accents */
+  --signal: #00d4a8;
+  --telemetry: #8b5cf6;
+  --warning: #ff8c42;
+  --info: #4a9eff;
 }
 
 .dark {
-  --background: #050505;
-  --foreground: #e5e5e5;
-  --card: #0a0a0a;
-  --card-foreground: #e5e5e5;
-  --popover: #0a0a0a;
-  --popover-foreground: #e5e5e5;
+  --background: #0b0d10;
+  --foreground: #e5e7ea;
+  --card: #11151a;
+  --card-foreground: #e5e7ea;
+  --popover: #11151a;
+  --popover-foreground: #e5e7ea;
   --primary: #00d4a8;
-  --primary-foreground: #050505;
-  --secondary: #141414;
-  --secondary-foreground: #e5e5e5;
-  --muted: #141414;
-  --muted-foreground: #707070;
-  --accent: #141414;
+  --primary-foreground: #0b0d10;
+  --secondary: #161b21;
+  --secondary-foreground: #e5e7ea;
+  --muted: #161b21;
+  --muted-foreground: #6b7480;
+  --accent: #1c2228;
   --accent-foreground: #00d4a8;
   --destructive: #ef4444;
-  --destructive-foreground: #050505;
-  --border: #252525;
-  --input: #252525;
+  --destructive-foreground: #0b0d10;
+  --border: #1c2228;
+  --input: #1c2228;
   --ring: #00d4a8;
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #e5e5e5;
+  --sidebar: #11151a;
+  --sidebar-foreground: #e5e7ea;
   --sidebar-primary: #00d4a8;
-  --sidebar-primary-foreground: #050505;
-  --sidebar-accent: #141414;
-  --sidebar-accent-foreground: #e5e5e5;
-  --sidebar-border: #252525;
+  --sidebar-primary-foreground: #0b0d10;
+  --sidebar-accent: #161b21;
+  --sidebar-accent-foreground: #e5e7ea;
+  --sidebar-border: #1c2228;
   --sidebar-ring: #00d4a8;
 }
 
@@ -138,22 +144,30 @@
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #050505;
+    background: #0b0d10;
   }
   ::-webkit-scrollbar-thumb {
-    background: #252525;
+    background: #1c2228;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #2a323d;
   }
 }
 
 /* Subtle grid backdrop for canvas surfaces */
 .bg-tech-grid {
   background-image:
-    linear-gradient(to right, #14141480 1px, transparent 1px),
-    linear-gradient(to bottom, #14141480 1px, transparent 1px);
+    linear-gradient(to right, #1c222880 1px, transparent 1px),
+    linear-gradient(to bottom, #1c222880 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+/* Denser grid for schematic/3D mode */
+.bg-tech-grid-fine {
+  background-image:
+    linear-gradient(to right, #1c2228 1px, transparent 1px),
+    linear-gradient(to bottom, #1c2228 1px, transparent 1px);
+  background-size: 12px 12px;
 }
 
 /* Live signal pulse */

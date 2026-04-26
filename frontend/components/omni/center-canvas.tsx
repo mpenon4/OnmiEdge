@@ -1,57 +1,48 @@
 "use client"
 
-import { useState } from "react"
-import { Box, CircuitBoard, Code2, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useOmniStore } from "@/lib/store"
 import { CodeEditor } from "./code-editor"
 import { PhysicsViewport } from "./physics-viewport"
 import { SchematicView } from "./schematic-view"
+import { View3D } from "./view-3d"
+import { ViewDebug } from "./view-debug"
+import { ViewDeploy } from "./view-deploy"
+import { ViewML } from "./view-ml"
+import { ViewPhysicsPanel } from "./view-physics-panel"
 
-type TabId = "ide" | "physics" | "schematic"
-
-const TABS: { id: TabId; label: string; icon: React.ReactNode; subtitle: string }[] = [
-  { id: "ide", label: "main.cpp", icon: <Code2 className="size-3" />, subtitle: "IDE · Monaco" },
-  { id: "physics", label: "rigid_body.sim", icon: <Box className="size-3" />, subtitle: "3D · Rapier" },
-  { id: "schematic", label: "main_board.sch", icon: <CircuitBoard className="size-3" />, subtitle: "Schematic" },
-]
-
+/**
+ * The Center Canvas is the largest workspace surface. Its content
+ * switches based on the global app mode set from the TopBar.
+ *
+ * IDE        → code editor (Monaco-style)
+ * SCHEMATIC  → node-based circuit diagram
+ * 3D         → PCB perspective viewport
+ * DEBUG      → registers + memory hex viewer
+ * ML         → model metrics + latency chart
+ * PHYSICS    → environmental sliders + sensor readout (with viewport)
+ * DEPLOY     → target MCU + build/flash flow
+ */
 export function CenterCanvas() {
-  const [active, setActive] = useState<TabId>("ide")
+  const mode = useOmniStore((s) => s.mode)
 
   return (
-    <section aria-label="Workspace canvas" className="flex h-full flex-col bg-background">
-      <div className="flex h-9 shrink-0 items-stretch border-b border-border bg-card">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setActive(t.id)}
-            className={cn(
-              "group flex items-center gap-2 border-r border-border px-3 font-mono text-[11px] transition-colors",
-              active === t.id
-                ? "bg-background text-foreground"
-                : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground",
-            )}
-          >
-            <span className={cn(active === t.id ? "text-primary" : "text-muted-foreground")} aria-hidden="true">
-              {t.icon}
-            </span>
-            <span>{t.label}</span>
-            <span className="text-[9px] tracking-wider text-muted-foreground">{t.subtitle}</span>
-            <X
-              className="size-3 text-muted-foreground/40 hover:text-foreground"
-              strokeWidth={1.5}
-              aria-hidden="true"
-            />
-          </button>
-        ))}
-        <div className="flex-1 border-r-0" aria-hidden="true" />
-      </div>
-
+    <section
+      aria-label="Workspace canvas"
+      className="flex h-full flex-col bg-background"
+    >
       <div className="min-h-0 flex-1">
-        {active === "ide" && <CodeEditor />}
-        {active === "physics" && <PhysicsViewport />}
-        {active === "schematic" && <SchematicView />}
+        {mode === "ide" && <CodeEditor />}
+        {mode === "schematic" && <SchematicView />}
+        {mode === "3d" && <View3D />}
+        {mode === "debug" && <ViewDebug />}
+        {mode === "ml" && <ViewML />}
+        {mode === "physics" && (
+          <div className="grid h-full grid-rows-[auto_1fr]">
+            <ViewPhysicsPanel />
+            <PhysicsViewport />
+          </div>
+        )}
+        {mode === "deploy" && <ViewDeploy />}
       </div>
     </section>
   )

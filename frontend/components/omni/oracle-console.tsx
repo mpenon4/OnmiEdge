@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronRight, Sparkles, Terminal } from "lucide-react"
+import { Bug, ChevronRight, Cpu, Search, Sparkles, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type LogLevel = "info" | "ok" | "warn" | "error" | "user" | "oracle"
@@ -41,11 +41,8 @@ export function OracleConsole() {
     setLog((l) => [...l, { id: idRef.current++, ts: ts(), ...entry }])
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const q = input.trim()
-    if (!q || pending) return
-    setInput("")
+  async function ask(q: string) {
+    if (!q.trim() || pending) return
     append({ level: "user", source: "you", message: q })
     setPending(true)
 
@@ -87,6 +84,38 @@ export function OracleConsole() {
     }
   }
 
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const q = input.trim()
+    if (!q) return
+    setInput("")
+    await ask(q)
+  }
+
+  const QUICK_ACTIONS = [
+    {
+      id: "fault",
+      label: "Inject Fault",
+      icon: <Bug className="size-3" strokeWidth={1.5} />,
+      prompt:
+        "Inject a fault scenario into the simulator: brown-out at 2.7V on the 3V3 rail. Predict which sensors and tasks are affected and propose a recovery sequence.",
+    },
+    {
+      id: "optimize",
+      label: "Optimize Model",
+      icon: <Cpu className="size-3" strokeWidth={1.5} />,
+      prompt:
+        "Analyze the current TFLite model (anomaly.tflite, INT8, arena 256KB). Suggest concrete optimizations to reduce arena and inference latency without losing more than 1% accuracy.",
+    },
+    {
+      id: "analyze",
+      label: "Analyze System",
+      icon: <Search className="size-3" strokeWidth={1.5} />,
+      prompt:
+        "Run a holistic system analysis: I²C bus health, RSSI trend, memory pressure, inference latency. Surface anomalies and rank them by severity.",
+    },
+  ]
+
   return (
     <section
       aria-label="Oracle AI console"
@@ -122,6 +151,30 @@ export function OracleConsole() {
             <span className="signal-live">oracle &rarr; computing…</span>
           </div>
         )}
+      </div>
+
+      <div className="flex h-8 shrink-0 items-center gap-2 border-t border-border bg-card px-3">
+        <span className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">Quick</span>
+        {QUICK_ACTIONS.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            disabled={pending}
+            onClick={() => ask(a.prompt)}
+            className={cn(
+              "flex items-center gap-1.5 border border-border bg-background px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase transition-colors",
+              pending
+                ? "cursor-not-allowed text-muted-foreground/40"
+                : "text-muted-foreground hover:border-primary hover:text-primary",
+            )}
+          >
+            <span aria-hidden="true">{a.icon}</span>
+            {a.label}
+          </button>
+        ))}
+        <span className="ml-auto font-mono text-[9px] text-muted-foreground/60">
+          press a quick action or type a free-form command
+        </span>
       </div>
 
       <form onSubmit={submit} className="flex h-9 shrink-0 items-center gap-2 border-t border-border px-3">

@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useOmniStore } from "@/lib/store"
 
 type Tab = "explorer" | "library"
 
@@ -149,14 +150,38 @@ function Explorer() {
 
 function TreeRow({ node, depth, initiallyOpen = false }: { node: Node; depth: number; initiallyOpen?: boolean }) {
   const [open, setOpen] = useState(initiallyOpen || depth < 2)
+  const setSelection = useOmniStore((s) => s.setSelection)
   const isFolder = node.type === "folder"
   const Icon = isFolder ? (open ? FolderOpen : Folder) : File
+
+  const langOf = (name: string) => {
+    if (name.endsWith(".cpp") || name.endsWith(".h")) return "C++"
+    if (name.endsWith(".tflite") || name.endsWith(".onnx")) return "Model"
+    if (name.endsWith(".sch")) return "Schematic"
+    if (name.endsWith(".sim")) return "Simulation"
+    if (name.endsWith(".ipynb")) return "Notebook"
+    if (name.endsWith(".ini")) return "Config"
+    if (name.endsWith(".md")) return "Markdown"
+    return "File"
+  }
 
   return (
     <div>
       <button
         type="button"
-        onClick={() => isFolder && setOpen((v) => !v)}
+        onClick={() => {
+          if (isFolder) {
+            setOpen((v) => !v)
+          } else {
+            setSelection({
+              kind: "file",
+              path: node.name,
+              lang: langOf(node.name),
+              size: 1024 + Math.floor(Math.random() * 8192),
+              status: node.badge === "!" ? "error" : node.badge === "M" ? "modified" : "compiled",
+            })
+          }
+        }}
         className={cn(
           "group flex h-6 w-full items-center gap-1.5 pr-2 font-mono text-[11px] transition-colors",
           node.active
