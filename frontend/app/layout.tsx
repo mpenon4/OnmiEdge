@@ -12,8 +12,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "OmniEdge Studio",
-  description: "Engineering Oracle Console",
+  title: "OmniEdge — Engineering IDE",
+  description:
+    "Unified workstation for embedded systems, TinyML, schematic, 3D and physical simulation. Designed for engineers.",
+};
+
+export const viewport = {
+  themeColor: "#0b0d10",
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -22,9 +28,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="bg-background dark">
       <body
-        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-[#050505] text-white overflow-hidden`}
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground overflow-hidden`}
       >
         {children}
       </body>

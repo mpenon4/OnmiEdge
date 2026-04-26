@@ -1,97 +1,212 @@
 "use client"
 
-import { Activity, GitBranch, Hexagon, Play, Save, Square } from "lucide-react"
-import { useState } from "react"
+import { ChevronDown, MoreHorizontal, PanelBottom, PanelLeft, PanelRight } from "lucide-react"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { type AppMode, useOmniStore } from "@/lib/store"
 
-const MENU = ["File", "Edit", "Project", "Build", "Simulate", "Train", "View", "Help"]
-
-export function TopBar() {
-  const [running, setRunning] = useState(false)
-
-  return (
-    <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-card pr-2 pl-3">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Hexagon className="size-4 text-primary" strokeWidth={1.5} aria-hidden="true" />
-          <span className="font-mono text-[11px] tracking-[0.2em] text-foreground uppercase">OmniEdge</span>
-          <span className="font-mono text-[10px] tracking-wider text-muted-foreground">v0.4.2</span>
-        </div>
-
-        <div className="h-5 w-px bg-border" aria-hidden="true" />
-
-        <nav aria-label="Application menu" className="flex items-center">
-          {MENU.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className="px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
-          <GitBranch className="size-3" strokeWidth={1.5} aria-hidden="true" />
-          <span>feature/omniedge-pro-shell</span>
-        </div>
-
-        <div className="h-5 w-px bg-border" aria-hidden="true" />
-
-        <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
-          <span className="text-muted-foreground">PROJECT</span>
-          <span className="text-foreground">esp32-edge-vision</span>
-        </div>
-
-        <div className="h-5 w-px bg-border" aria-hidden="true" />
-
-        <div className="flex items-center">
-          <ToolbarBtn icon={<Save className="size-3.5" strokeWidth={1.5} />} label="Save" />
-          <ToolbarBtn
-            icon={
-              running ? (
-                <Square className="size-3.5 fill-current" strokeWidth={1.5} />
-              ) : (
-                <Play className="size-3.5 fill-current" strokeWidth={1.5} />
-              )
-            }
-            label={running ? "Stop" : "Run"}
-            active={running}
-            onClick={() => setRunning((v) => !v)}
-          />
-          <ToolbarBtn icon={<Activity className="size-3.5" strokeWidth={1.5} />} label="Telemetry" />
-        </div>
-      </div>
-    </header>
-  )
+type TopBarProps = {
+  onToggleSidebar?: () => void
+  onToggleInspector?: () => void
+  onToggleOracle?: () => void
 }
 
-function ToolbarBtn({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  active?: boolean
-  onClick?: () => void
-}) {
+const MODES: { id: AppMode; label: string }[] = [
+  { id: "ide", label: "IDE" },
+  { id: "schematic", label: "Schematic" },
+  { id: "3d", label: "3D" },
+  { id: "debug", label: "Debug" },
+  { id: "ml", label: "ML" },
+  { id: "physics", label: "Physics" },
+  { id: "deploy", label: "Deploy" },
+]
+
+const PROJECTS = ["esp32-edge-vision", "stm32-thermal-control", "rp2040-mesh-node", "nrf52-wearable-imu"]
+
+export function TopBar({ onToggleSidebar, onToggleInspector, onToggleOracle }: TopBarProps = {}) {
+  const mode = useOmniStore((s) => s.mode)
+  const setMode = useOmniStore((s) => s.setMode)
+  const project = useOmniStore((s) => s.project)
+  const setProject = useOmniStore((s) => s.setProject)
+  const isSimulating = useOmniStore((s) => s.isSimulating)
+  const fps = useOmniStore((s) => s.fps)
+  const cpu = useOmniStore((s) => s.cpu)
+  const setSimMetrics = useOmniStore((s) => s.setSimMetrics)
+  const [projectOpen, setProjectOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isSimulating) return
+    const id = setInterval(() => {
+      const f = 58 + Math.random() * 4
+      const c = 22 + Math.random() * 18
+      setSimMetrics(Number(f.toFixed(1)), Math.round(c))
+    }, 700)
+    return () => clearInterval(id)
+  }, [isSimulating, setSimMetrics])
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "flex h-7 w-7 items-center justify-center transition-colors",
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-      )}
+    <header
+      className="flex h-9 shrink-0 items-stretch border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)]"
+      style={{ height: 36 }}
     >
-      {icon}
-    </button>
+      {/* Logo */}
+      <div className="flex shrink-0 items-center gap-2 px-3">
+        <span className="font-mono text-[11px] font-medium tracking-[0.2em] text-[var(--color-text-primary)] uppercase">
+          OmniEdge
+        </span>
+        <span className="font-mono text-[10px] tracking-wider text-[var(--color-text-secondary)]">v0.4.2</span>
+      </div>
+
+      <div className="my-2 w-px bg-[var(--color-border-tertiary)]" aria-hidden="true" />
+
+      {/* Mode tabs — no icons, just text in caps */}
+      <nav aria-label="Workstation mode" className="flex items-stretch">
+        {MODES.map((m) => {
+          const active = mode === m.id
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              aria-pressed={active}
+              className={cn(
+                "relative flex items-center px-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors",
+                active
+                  ? "bg-[var(--color-background-secondary)] text-[var(--color-text-primary)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+              )}
+            >
+              {m.label}
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-[2px] bg-[var(--color-text-info)]"
+                />
+              )}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right: status chips, project selector, branch, more */}
+      <div className="flex shrink-0 items-center gap-4 pr-3">
+        {/* Status chips — solo texto, sin bordes */}
+        <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--color-text-secondary)]">
+          <span
+            className={cn(
+              "tracking-wider uppercase tabular-nums",
+              isSimulating ? "text-[var(--color-text-success)]" : "text-[var(--color-text-secondary)]",
+            )}
+          >
+            {isSimulating ? "RUNNING" : "IDLE"}
+          </span>
+          <span>
+            FPS <span className="text-[var(--color-text-primary)] tabular-nums">{fps.toFixed(0)}</span>
+          </span>
+          <span>
+            CPU{" "}
+            <span
+              className={cn(
+                "tabular-nums",
+                cpu > 80
+                  ? "text-[var(--color-text-danger)]"
+                  : cpu > 60
+                    ? "text-[var(--color-text-warning)]"
+                    : "text-[var(--color-text-primary)]",
+              )}
+            >
+              {cpu}%
+            </span>
+          </span>
+        </div>
+
+        {/* Project selector */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setProjectOpen((v) => !v)}
+            className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            aria-haspopup="listbox"
+            aria-expanded={projectOpen}
+          >
+            <span className="text-[var(--color-text-primary)]">{project}</span>
+            <ChevronDown className="size-3" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          {projectOpen && (
+            <ul
+              role="listbox"
+              className="absolute right-0 top-full z-50 mt-1 min-w-[220px] border border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] shadow-lg"
+            >
+              {PROJECTS.map((p) => (
+                <li key={p}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={p === project}
+                    onClick={() => {
+                      setProject(p)
+                      setProjectOpen(false)
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between px-3 py-1.5 text-left font-mono text-[11px] hover:bg-[var(--color-background-secondary)]",
+                      p === project
+                        ? "text-[var(--color-text-info)]"
+                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+                    )}
+                  >
+                    <span>{p}</span>
+                    {p === project && <span className="text-[9px] tracking-wider">ACTIVE</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">v0/mpenon4-e83b86d8</span>
+
+        {/* Layout toggles — collapse/expand panels */}
+        <div className="flex items-center border-l border-[var(--color-border-tertiary)] pl-3">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label="Toggle sidebar"
+            title="Toggle sidebar"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelLeft className="size-3.5" strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleOracle}
+            aria-label="Toggle Oracle console"
+            title="Toggle Oracle console"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelBottom className="size-3.5" strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleInspector}
+            aria-label="Toggle inspector"
+            title="Toggle inspector"
+            className="flex size-6 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            <PanelRight className="size-3.5" strokeWidth={1.5} />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          aria-label="More"
+          className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        >
+          <MoreHorizontal className="size-4" strokeWidth={1.5} />
+        </button>
+      </div>
+    </header>
   )
 }
