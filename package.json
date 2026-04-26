@@ -1,0 +1,13 @@
+{
+  "name": "omniedge-root",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Root delegate so the v0 preview boots the Next.js app that lives in /frontend. Vercel deploys still use their own Root Directory setting and ignore this file.",
+  "scripts": {
+    "postinstall": "cd frontend && npm install --no-audit --no-fund --silent",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm run start",
+    "lint": "cd frontend && npm run lint"
+  }
+}
